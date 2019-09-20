@@ -27,19 +27,25 @@ typedef uint32_t DWORD;
 #define MEM_MAPPED 262144
 #define MEM_PRIVATE 131072
 
-typedef enum {htEmpty=0, htProcesHandle, htThreadHandle, htTHSProcess, htTHSModule, htNativeThreadHandle} handleType; //The difference between ThreadHandle and NativeThreadHandle is that threadhandle is based on the processid of the thread, the NativeThreadHandle is in linux usually the pthread_t handle
+typedef enum {
+    htEmpty = 0, htProcesHandle, htThreadHandle, htTHSProcess, htTHSModule, htNativeThreadHandle
+} handleType; //The difference between ThreadHandle and NativeThreadHandle is that threadhandle is based on the processid of the thread, the NativeThreadHandle is in linux usually the pthread_t handle
 typedef int BOOL;
 
-typedef int (*HANDLESEARCHCALLBACK) (void *data, void *searchdata);
+typedef int (*HANDLESEARCHCALLBACK)(void *data, void *searchdata);
 
 #define TRUE 1
 #define FALSE 0
 
 
 int CreateHandleFromPointer(void *p, handleType type);
+
 void *GetPointerFromHandle(int handle);
+
 handleType GetHandleType(int handle);
+
 void RemoveHandle(int handle);
+
 int SearchHandleList(int type, HANDLESEARCHCALLBACK cb, void *searchdata);
 
 #endif /* PORTHELP_H_ */

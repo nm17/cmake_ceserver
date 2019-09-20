@@ -21,8 +21,13 @@
 
 
 uint64_t ext_alloc(HANDLE hProcess, uint64_t preferedBase, int size);
+
 int ext_free(HANDLE hProcess, uint64_t address, int size);
+
 uint64_t ext_createThread(HANDLE hProcess, uint64_t startaddress, uint64_t parameter);
+
 int ext_speedhack_setSpeed(HANDLE hProcess, float speed);
+
+uint64_t ext_loadModule(HANDLE hProcess, char *modulepath);
 
 #endif /* EXTENSIONFUNCTIONS_H_ */

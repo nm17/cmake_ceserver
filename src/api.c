@@ -12,6 +12,8 @@
 
 //todo for in the far future: Hook syscalls
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wint-to-void-pointer-cast"
 #define _FILE_OFFSET_BITS 64
 #define _LARGEFILE64_SOURCE
 
@@ -66,8 +68,8 @@
 
 #ifdef __arm__
 #ifndef __ANDROID__
-    #include <linux/user.h>
-  #endif
+#include <linux/user.h>
+#endif
 #endif
 
 //blatantly stolen from the kernel source
@@ -91,17 +93,17 @@
 #define ARM_BREAKPOINT_LEN_4    0xf
 #define ARM_BREAKPOINT_LEN_8    0xff
 
-static inline unsigned int encode_ctrl_reg(int mismatch, int len, int type, int privilege, int enabled)
-{
+static inline unsigned int encode_ctrl_reg(int mismatch, int len, int type, int privilege, int enabled) {
     return (mismatch << 22) | (len << 5) | (type << 3) | (privilege << 1) | enabled;
 }
 
 #ifndef __ANDROID__
 #if defined(__i386__) || defined(__x86_64__)
-#include <sys/user.h>
-#endif
-#endif
 
+#include <sys/user.h>
+
+#endif
+#endif
 
 
 #include "api.h"
@@ -118,34 +120,31 @@ pthread_mutex_t memorymutex;
 pthread_mutex_t debugsocketmutex;
 //pthread_mutex_t mut_RPM;
 
-typedef struct
-{
+typedef struct {
     int ReferenceCount;
     int processListIterator;
     int processCount;
     PProcessListEntry processList;
 } ProcessList, *PProcessList;
 
-typedef struct
-{
+typedef struct {
     int ReferenceCount;
     int moduleListIterator;
     int moduleCount;
     PModuleListEntry moduleList;
 } ModuleList, *PModuleList;
 
-int VerboseLevel=0;
+int VerboseLevel = 0;
 
 int MEMORY_SEARCH_OPTION = 0;
 int ATTACH_PID = 0;
 unsigned char SPECIFIED_ARCH = 9;
 
 //Implementation for shared library version ceserver.
-int debug_log(const char * format , ...)
-{
+int debug_log(const char *format, ...) {
     va_list list;
-    va_start(list,format);
-    int ret = vprintf(format,list);
+    va_start(list, format);
+    int ret = vprintf(format, list);
 
 #ifdef __ANDROID__
     LOGD(format,list);
@@ -155,26 +154,22 @@ int debug_log(const char * format , ...)
 }
 
 //Implementation for consistency with Android Studio.
-long safe_ptrace(int request, pid_t pid, void * addr, void * data)
-{
+long safe_ptrace(int request, pid_t pid, void *addr, void *data) {
     int result;
     errno = 0;
     result = ptrace(request, pid, addr, data);
-    if(errno != 0)
-    {
-        debug_log("ptrace error(%d)!\n",errno);
+    if (errno != 0) {
+        debug_log("ptrace error(%d)!\n", errno);
     }
     return result;
 }
 
-int WakeDebuggerThread()
-{
+void WakeDebuggerThread() {
 
     sem_post(&sem_DebugThreadEvent);
 }
 
-void mychildhandler(int signal, struct siginfo *info, void *context)
-{
+void mychildhandler(int signal, struct siginfo *info, void *context) {
     //only call re-entrant functions
 
     int orig_errno = errno;
@@ -187,11 +182,9 @@ void mychildhandler(int signal, struct siginfo *info, void *context)
 int GetDebugPort(HANDLE hProcess)
 //return the debugserver fd
 {
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
-        if (p->isDebugged)
-        {
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
+        if (p->isDebugged) {
             return p->debuggerServer;
         }
     }
@@ -206,20 +199,21 @@ int FindPausedThread(PProcessData p)
  */
 {
     int i;
-    for (i=0; i<p->threadlistpos; i++)
+    for (i = 0; i < p->threadlistpos; i++)
         if (p->threadlist[i].isPaused)
             return p->threadlist[i].tid;
 
     return 0;
 }
 
-int getBreakpointCapabilities(int tid, uint8_t *maxBreakpointCount, uint8_t *maxWatchpointCount, uint8_t *maxSharedBreakpoints)
+int getBreakpointCapabilities(int tid, uint8_t *maxBreakpointCount, uint8_t *maxWatchpointCount,
+                              uint8_t *maxSharedBreakpoints)
 //Only called when the thread is suspended
 {
 
-    *maxBreakpointCount=0;
-    *maxWatchpointCount=0;
-    *maxSharedBreakpoints=0;
+    *maxBreakpointCount = 0;
+    *maxWatchpointCount = 0;
+    *maxSharedBreakpoints = 0;
 
 
 #ifdef __arm__
@@ -274,22 +268,19 @@ int getBreakpointCapabilities(int tid, uint8_t *maxBreakpointCount, uint8_t *max
 #endif
 
 #if defined(__i386__) || defined(__x86_64__)
-    *maxBreakpointCount=0;
-    *maxWatchpointCount=0;
-    *maxSharedBreakpoints=4;
+    *maxBreakpointCount = 0;
+    *maxWatchpointCount = 0;
+    *maxSharedBreakpoints = 4;
     return 1;
 #endif
 }
 
-int StartDebug(HANDLE hProcess)
-{
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+int StartDebug(HANDLE hProcess) {
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
         struct sigaction childactionhandler;
-        if (p->isDebugged)
-        {
+        if (p->isDebugged) {
             debug_log("Trying to start debugging a process that is already debugged\n");
             return FALSE;
         }
@@ -300,9 +291,8 @@ int StartDebug(HANDLE hProcess)
 
         //setup an event
         memset(&childactionhandler, 0, sizeof(childactionhandler));
-        childactionhandler.sa_handler=(void *)mychildhandler;
-        childactionhandler.sa_flags=SA_SIGINFO;
-
+        childactionhandler.sa_handler = (void *) mychildhandler;
+        childactionhandler.sa_flags = SA_SIGINFO;
 
 
         sigaction(SIGCHLD, &childactionhandler, NULL);
@@ -316,40 +306,35 @@ int StartDebug(HANDLE hProcess)
 
         sprintf(_taskdir, "/proc/%d/task", p->pid);
 
-        taskdir=opendir(_taskdir);
+        taskdir = opendir(_taskdir);
 
-        if (taskdir)
-        {
+        if (taskdir) {
             struct dirent *d;
 
-            d=readdir(taskdir);
-            while (d)
-            {
-                int tid=atoi(d->d_name);
+            d = readdir(taskdir);
+            while (d) {
+                int tid = atoi(d->d_name);
 
-                if (tid)
-                {
+                if (tid) {
                     ThreadData td;
                     memset(&td, 0, sizeof(td));
-                    td.tid=tid;
-                    td.isPaused=0;
+                    td.tid = tid;
+                    td.isPaused = 0;
                     AddThreadToProcess(p, &td);
 
-                    pthread_mutex_lock(&memorymutex); //so there's no ptrace_attach busy when attaching after opening and reading memory
+                    pthread_mutex_lock(
+                            &memorymutex); //so there's no ptrace_attach busy when attaching after opening and reading memory
 
-                    if (safe_ptrace(PTRACE_ATTACH, tid,0,0)<0)
+                    if (safe_ptrace(PTRACE_ATTACH, tid, 0, 0) < 0)
                         debug_log("Failed to attach to thread %d\n", tid);
-                    else
-                    {
+                    else {
                         DebugEvent createThreadEvent;
 
 
-
-                        if (p->isDebugged==0)
-                        {
-                            p->isDebugged=1; //at least one made it...
-                            p->debuggedThreadEvent.threadid=0; //none yet
-                            p->debuggerThreadID=pthread_self();
+                        if (p->isDebugged == 0) {
+                            p->isDebugged = 1; //at least one made it...
+                            p->debuggedThreadEvent.threadid = 0; //none yet
+                            p->debuggerThreadID = pthread_self();
 
                             socketpair(PF_LOCAL, SOCK_STREAM, 0, &p->debuggerServer);
 
@@ -386,21 +371,21 @@ int StartDebug(HANDLE hProcess)
 
 #if defined(__i386__) || defined(__x86_64__)
                             //4 breakpoints, hybrid
-                            createProcessEvent.maxBreakpointCount=0;
-                            createProcessEvent.maxWatchpointCount=0;
-                            createProcessEvent.maxSharedBreakpoints=4;
+                            createProcessEvent.maxBreakpointCount = 0;
+                            createProcessEvent.maxWatchpointCount = 0;
+                            createProcessEvent.maxSharedBreakpoints = 4;
 #endif
 
 
-                            createProcessEvent.debugevent=-2; //create process
-                            createProcessEvent.threadid=p->pid;
+                            createProcessEvent.debugevent = -2; //create process
+                            createProcessEvent.threadid = p->pid;
 
                             AddDebugEventToQueue(p, &createProcessEvent);
 
                         }
 
-                        createThreadEvent.debugevent=-1; //create thread event (virtual event)
-                        createThreadEvent.threadid=tid;
+                        createThreadEvent.debugevent = -1; //create thread event (virtual event)
+                        createThreadEvent.threadid = tid;
                         AddDebugEventToQueue(p, &createThreadEvent);
 
 
@@ -411,23 +396,19 @@ int StartDebug(HANDLE hProcess)
 
                 }
 
-                d=readdir(taskdir);
+                d = readdir(taskdir);
             }
 
             closedir(taskdir);
 
-        }
-        else
-        {
-            debug_log("Failure opening %s",_taskdir);
+        } else {
+            debug_log("Failure opening %s", _taskdir);
         }
 
 
         return p->isDebugged;
 
-    }
-    else
-    {
+    } else {
         //printf("Invalid handle\n");
         return FALSE;
     }
@@ -446,99 +427,81 @@ int SetBreakpoint(HANDLE hProcess, int tid, int debugreg, void *address, int bpt
  * returns TRUE if the breakpoint was set *
  */
 {
-    int result=FALSE;
+    int result = FALSE;
 
 
     debug_log("SetBreakpoint(%d, %d, %d, %p, %d, %d)\n", hProcess, tid, debugreg, address, bptype, bpsize);
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
 
+        if (p->debuggerThreadID == pthread_self()) {
 
-        if (p->debuggerThreadID==pthread_self())
-        {
-
-            int isdebugged=FindPausedThread(p);
+            int isdebugged = FindPausedThread(p);
             int wtid;
             DebugEvent de;
 
 
-
             debug_log("SetBreakpoint from debuggerthread\n");
 
-            if (tid==-1)
-            {
-                int i,r;
+            if (tid == -1) {
+                int i, r;
                 debug_log("Calling SetBreakpoint for all threads\n");
 
-                for (i=0; i<p->threadlistpos; i++)
-                {
-                    r=SetBreakpoint(hProcess, p->threadlist[i].tid, debugreg, address, bptype, bpsize);
+                for (i = 0; i < p->threadlistpos; i++) {
+                    r = SetBreakpoint(hProcess, p->threadlist[i].tid, debugreg, address, bptype, bpsize);
                     if (r)
-                        result=TRUE; //at least one thread succeeded
+                        result = TRUE; //at least one thread succeeded
                 }
 
-            }
-            else
-            {
-                PThreadData td=GetThreadData(p, tid);
+            } else {
+                PThreadData td = GetThreadData(p, tid);
                 int wasPaused;
 
-                if (td==NULL) //should NEVER happen
+                if (td == NULL) //should NEVER happen
                     return FALSE;
 
-                wasPaused=td->isPaused;
+                wasPaused = td->isPaused;
 
                 debug_log("Calling setbreakpoint for thread :%d\n", tid);
 
                 debug_log("isdebugged=%d\n", isdebugged);
 
-                if (wasPaused==0)
-                {
+                if (wasPaused == 0) {
                     //manual
                     debug_log("Target thread wasn't stopped yet\n");
 
-                    int k=0;
+                    int k = 0;
 
                     debug_log("td=%p\n", td);
                     debug_log("td->isPaused=%d\n", td->isPaused);
 
 
-
-
-                    wtid=tid;
-                    while ((td) && (td->isPaused==0) && (k<10))
-                    {
+                    wtid = tid;
+                    while ((td) && (td->isPaused == 0) && (k < 10)) {
                         debug_log("Not yet paused\n");
                         syscall(__NR_tkill, tid, SIGSTOP);
 
-                        if (WaitForDebugEventNative(p, &de, tid, 100))
-                        {
-                            wtid=de.threadid;
+                        if (WaitForDebugEventNative(p, &de, tid, 100)) {
+                            wtid = de.threadid;
                             break;
                         }
                         k++;
                     }
 
 
-
-                    if (wtid!=tid)
-                    {
+                    if (wtid != tid) {
                         debug_log("<<<================UNEXPECTED TID (wtid=%d tid=%d)================>>>\n", wtid, tid);
                     }
 
                     debug_log("k=%d (number of tries)\n", k);
 
-                    if (k==10)
-                    {
+                    if (k == 10) {
                         debug_log("Timeout when waiting for thread\n");
                     }
-                }
-                else
-                {
+                } else {
                     debug_log("The thread I wanted to break was already broken. Yeeeh\n");
-                    wtid=isdebugged;
+                    wtid = isdebugged;
                 }
 
                 //debugging the given tid
@@ -767,36 +730,34 @@ int SetBreakpoint(HANDLE hProcess, int tid, int debugreg, void *address, int bpt
 #if defined(__i386__) || defined(__x86_64__)
                 //debug regs
                 //PTRACE_SETREGS
-                int r,r2;
+                int r, r2;
 
-                uintptr_t newdr7=safe_ptrace(PTRACE_PEEKUSER, wtid, offsetof(struct user, u_debugreg[7]), 0);
+                uintptr_t newdr7 = safe_ptrace(PTRACE_PEEKUSER, wtid, offsetof(struct user, u_debugreg[7]), 0);
 
 
-                newdr7=newdr7 | (1<<debugreg*2);
+                newdr7 = newdr7 | (1 << debugreg * 2);
 
-                if (bptype==2) //x86 does not support read onlyhw bps
-                    bptype=3;
+                if (bptype == 2) //x86 does not support read onlyhw bps
+                    bptype = 3;
 
-                newdr7=newdr7 | (bptype << (16+(debugreg*4))); //bptype
+                newdr7 = newdr7 | (bptype << (16 + (debugreg * 4))); //bptype
 
                 debug_log("Setting DR7 to %x\n", newdr7);
 
                 //bplen
-                if (bpsize<=1)
-                    newdr7=newdr7 | (0 << (18+(debugreg*4)));
+                if (bpsize <= 1)
+                    newdr7 = newdr7 | (0 << (18 + (debugreg * 4)));
+                else if (bpsize <= 2)
+                    newdr7 = newdr7 | (1 << (18 + (debugreg * 4)));
                 else
-                if (bpsize<=2)
-                    newdr7=newdr7 | (1 << (18+(debugreg*4)));
-                else
-                    newdr7=newdr7 | (3 << (18+(debugreg*4)));
+                    newdr7 = newdr7 | (3 << (18 + (debugreg * 4)));
 
 
-                r=safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[debugreg]), address);
-                r2=safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[7]), newdr7);
+                r = safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[debugreg]), address);
+                r2 = safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[7]), newdr7);
 
-                result=(r==0) && (r2==0);
-                if (!result)
-                {
+                result = (r == 0) && (r2 == 0);
+                if (!result) {
                     debug_log("Failure setting breakpoint\n");
                 }
 
@@ -808,27 +769,25 @@ int SetBreakpoint(HANDLE hProcess, int tid, int debugreg, void *address, int bpt
                 //store this breakpoint in the list
 
 
-                if (wasPaused==0)
-                {
+                if (wasPaused == 0) {
                     int r;
 
                     debug_log("Continue self broken thread\n");
 
-                    if (de.debugevent!=SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
+                    if (de.debugevent !=
+                        SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
                     {
 
 
                         debug_log("Not a SIGSTOP. Adding to queue and leave suspended\n");
                         AddDebugEventToQueue(p, &de);
-                        td->isPaused=1; //mark as paused for other api's
-                    }
-                    else
-                    {
+                        td->isPaused = 1; //mark as paused for other api's
+                    } else {
 
-                        r=safe_ptrace(PTRACE_CONT, wtid, 0,0);
+                        r = safe_ptrace(PTRACE_CONT, wtid, 0, 0);
                         debug_log("PTRACE_CONT=%d\n", r);
 
-                        td->isPaused=0;
+                        td->isPaused = 0;
                     }
                 }
             }
@@ -838,15 +797,12 @@ int SetBreakpoint(HANDLE hProcess, int tid, int debugreg, void *address, int bpt
             debug_log("end of SetBreakpoint reached. result=%d\n", result);
 
 
-        }
-        else
-        {
+        } else {
             //not the debugger thread. Send a message to the debuggerthread to execute this command
             debug_log("SetBreakpoint from outside the debuggerthread. Waking debuggerthread\n");
             //setup a sb command
 #pragma pack(1)
-            struct
-            {
+            struct {
                 char command;
                 HANDLE hProcess;
                 int tid;
@@ -857,16 +813,15 @@ int SetBreakpoint(HANDLE hProcess, int tid, int debugreg, void *address, int bpt
             } sb;
 #pragma pack()
 
-            sb.command=CMD_SETBREAKPOINT;
-            sb.hProcess=hProcess;
-            sb.tid=tid;
-            sb.debugreg=debugreg;
-            sb.address=(uintptr_t)address;
-            sb.bptype=bptype;
-            sb.bpsize=bpsize;
+            sb.command = CMD_SETBREAKPOINT;
+            sb.hProcess = hProcess;
+            sb.tid = tid;
+            sb.debugreg = debugreg;
+            sb.address = (uintptr_t) address;
+            sb.bptype = bptype;
+            sb.bpsize = bpsize;
 
-            if (pthread_mutex_lock(&debugsocketmutex) == 0)
-            {
+            if (pthread_mutex_lock(&debugsocketmutex) == 0) {
                 debug_log("Sending message to the debuggerthread\n");
 
                 sendall(p->debuggerClient, &sb, sizeof(sb), 0);
@@ -881,9 +836,7 @@ int SetBreakpoint(HANDLE hProcess, int tid, int debugreg, void *address, int bpt
 
         }
 
-    }
-    else
-    {
+    } else {
         // debug_log("Invalid handle\n");
     }
 
@@ -891,45 +844,38 @@ int SetBreakpoint(HANDLE hProcess, int tid, int debugreg, void *address, int bpt
 
 }
 
-int RemoveBreakpoint(HANDLE hProcess, int tid, int debugreg,int wasWatchpoint)
+int RemoveBreakpoint(HANDLE hProcess, int tid, int debugreg, int wasWatchpoint)
 /*
  * Removes the breakpoint with the provided address
  */
 {
-    int result=FALSE;
+    int result = FALSE;
 
     debug_log("RemoveBreakpoint(%d, %d, %d, %d)\n", hProcess, tid, debugreg, wasWatchpoint);
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
-        if (p->debuggerThreadID==pthread_self())
-        {
-            int isdebugged=p->debuggedThreadEvent.threadid;
+        if (p->debuggerThreadID == pthread_self()) {
+            int isdebugged = p->debuggedThreadEvent.threadid;
             int wtid;
             DebugEvent de;
 
             debug_log("Called from the debuggerthread itself\n");
 
-            if (tid==-1)
-            {
+            if (tid == -1) {
                 int i;
                 debug_log("Calling RemoveBreakpoint for all threads\n");
-                for (i=0; i<p->threadlistpos; i++)
-                {
-                    if (RemoveBreakpoint(hProcess, p->threadlist[i].tid, debugreg, wasWatchpoint)==TRUE)
-                        result=TRUE;
+                for (i = 0; i < p->threadlistpos; i++) {
+                    if (RemoveBreakpoint(hProcess, p->threadlist[i].tid, debugreg, wasWatchpoint) == TRUE)
+                        result = TRUE;
                 }
-            }
-            else
-            {
+            } else {
                 debug_log("specific thread\n");
 
-                PThreadData td=GetThreadData(p, tid);
-                int wasPaused=td->isPaused;
+                PThreadData td = GetThreadData(p, tid);
+                int wasPaused = td->isPaused;
 
-                if (wasPaused==0)
-                {
+                if (wasPaused == 0) {
                     //manual
                     debug_log("Not currently paused\n");
                     debug_log("Going to kill and wait for this thread\n");
@@ -937,27 +883,24 @@ int RemoveBreakpoint(HANDLE hProcess, int tid, int debugreg,int wasWatchpoint)
                     int k;
 
 
-                    k=0;
-                    while ((td) && (td->isPaused==0) && (k<10))
-                    {
+                    k = 0;
+                    while ((td) && (td->isPaused == 0) && (k < 10)) {
                         syscall(__NR_tkill, tid, SIGSTOP);
                         if (WaitForDebugEventNative(p, &de, tid, 100))
                             break;
                         k++;
                     }
 
-                    wtid=de.threadid;
+                    wtid = de.threadid;
 
 
                     debug_log("----AFTER WAIT----\n");
 
                     debug_log("after wtid=%d\n", wtid);
                     debug_log("^^^^AFTER WAIT^^^^\n");
-                }
-                else
-                {
+                } else {
                     debug_log("The thread I wanted to break was already broken. Yeeeh\n");
-                    wtid=isdebugged;
+                    wtid = isdebugged;
                 }
 
                 //debugging the given tid
@@ -1030,61 +973,56 @@ int RemoveBreakpoint(HANDLE hProcess, int tid, int debugreg,int wasWatchpoint)
 
 #if defined(__i386__) || defined(__x86_64__)
                 int r;
-                uintptr_t dr7=0;
+                uintptr_t dr7 = 0;
                 debug_log("x86\n");
 
-                dr7=safe_ptrace(PTRACE_PEEKUSER, wtid, offsetof(struct user, u_debugreg[7]), 0);
+                dr7 = safe_ptrace(PTRACE_PEEKUSER, wtid, offsetof(struct user, u_debugreg[7]), 0);
 
-                dr7&=~(3 << (debugreg*2)); //disable G# and L#
-                dr7&=~(15 << (16+debugreg*4)); //set len and type for this debugreg to 0
-
-
-                r=safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[debugreg]), 0);
+                dr7 &= ~(3 << (debugreg * 2)); //disable G# and L#
+                dr7 &= ~(15 << (16 + debugreg * 4)); //set len and type for this debugreg to 0
 
 
-                r=safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[7]), dr7);
-                if (r==0)
-                    result=TRUE;
+                r = safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[debugreg]), 0);
+
+
+                r = safe_ptrace(PTRACE_POKEUSER, wtid, offsetof(struct user, u_debugreg[7]), dr7);
+                if (r == 0)
+                    result = TRUE;
                 else
                     debug_log("Failure removing breakpoint from thread %d\n", wtid);
 
 
 #endif
 
-                if (wasPaused==0)
-                {
+                if (wasPaused == 0) {
                     int r;
-                    PThreadData td=GetThreadData(p, tid);
+                    PThreadData td = GetThreadData(p, tid);
 
                     debug_log("Continue self broken thread\n");
 
-                    if (de.debugevent!=SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
+                    if (de.debugevent !=
+                        SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
                     {
                         debug_log("Not a SIGSTOP. Adding to queue and leave suspended\n");
                         AddDebugEventToQueue(p, &de);
 
 
-                        td->isPaused=1;
-                    }
-                    else
-                    {
-                        r=safe_ptrace(PTRACE_CONT, wtid, 0,0);
+                        td->isPaused = 1;
+                    } else {
+                        r = safe_ptrace(PTRACE_CONT, wtid, 0, 0);
                         debug_log("PTRACE_CONT=%d\n", r);
 
-                        td->isPaused=0;
+                        td->isPaused = 0;
                     }
                 }
 
 
             }
 
-        }
-        else
-        {
+        } else {
             debug_log("Called from a secondary thread\n");
 #pragma pack(1)
-            struct
-            {
+            struct {
                 char command;
                 HANDLE hProcess;
                 int tid;
@@ -1093,15 +1031,14 @@ int RemoveBreakpoint(HANDLE hProcess, int tid, int debugreg,int wasWatchpoint)
             } rb;
 #pragma pack()
 
-            rb.command=CMD_REMOVEBREAKPOINT;
-            rb.hProcess=hProcess;
-            rb.tid=tid;
-            rb.debugreg=debugreg;
-            rb.wasWatchpoint=wasWatchpoint;
+            rb.command = CMD_REMOVEBREAKPOINT;
+            rb.hProcess = hProcess;
+            rb.tid = tid;
+            rb.debugreg = debugreg;
+            rb.wasWatchpoint = wasWatchpoint;
 
 
-            if (pthread_mutex_lock(&debugsocketmutex) == 0)
-            {
+            if (pthread_mutex_lock(&debugsocketmutex) == 0) {
 
                 debug_log("Sending message to the debuggerthread\n");
 
@@ -1115,8 +1052,7 @@ int RemoveBreakpoint(HANDLE hProcess, int tid, int debugreg,int wasWatchpoint)
 
         }
 
-    }
-    else
+    } else
         debug_log("Invalid handle\n");
 
     return result;
@@ -1129,38 +1065,31 @@ int GetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type)
  * type is the data to be gathered (currently ignored but may be used in the future for specific data)
  */
 {
-    int r=FALSE;
+    int r = FALSE;
     debug_log("GetThreadContext(%d)\n", tid);
 
 
-
-    if (tid<=0)
-    {
+    if (tid <= 0) {
         debug_log("Invalid tid\n");
         return FALSE;
     }
 
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
 
-
-        if (p->debuggerThreadID==pthread_self())
-        {
-            PThreadData td=GetThreadData(p, tid);
+        if (p->debuggerThreadID == pthread_self()) {
+            PThreadData td = GetThreadData(p, tid);
 
             debug_log("Inside debuggerthread\n");
 
-            if (td)
-            {
+            if (td) {
                 DebugEvent de;
-                int wasPaused=td->isPaused;
-                int k=0;
+                int wasPaused = td->isPaused;
+                int k = 0;
 
 
-                while ((td->isPaused==0) && (k<10))
-                {
+                while ((td->isPaused == 0) && (k < 10)) {
                     debug_log("This thread was not paused. Pausing it\n");
                     syscall(__NR_tkill, tid, SIGSTOP);
                     if (WaitForDebugEventNative(p, &de, tid, 100))
@@ -1171,53 +1100,47 @@ int GetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type)
 
                 //the thread is paused, so fetch the data
 
-                k=getRegisters(tid, &Context->regs);
+                k = getRegisters(tid, &Context->regs);
 
 
                 //k=safe_ptrace(PTRACE_GETREGS, tid, 0, &Context->regs);
                 debug_log("getRegisters() returned %d\n", k);
 
-                if (k==0)
-                    r=TRUE;
+                if (k == 0)
+                    r = TRUE;
                 else
-                    r=FALSE;
+                    r = FALSE;
 
 
-                if (!wasPaused)
-                {
+                if (!wasPaused) {
                     //continue if sigstop
-                    PThreadData td=GetThreadData(p, tid);
+                    PThreadData td = GetThreadData(p, tid);
 
                     debug_log("The thread was not paused, so resuming it now\n");
 
-                    if (de.debugevent!=SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
+                    if (de.debugevent !=
+                        SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
                     {
                         debug_log("Not a SIGSTOP. Adding to queue and leave suspended\n");
                         AddDebugEventToQueue(p, &de);
-                        td->isPaused=1;
-                    }
-                    else
-                    {
-                        r=(r && (safe_ptrace(PTRACE_CONT, de.threadid, 0,0)==0));
+                        td->isPaused = 1;
+                    } else {
+                        r = (r && (safe_ptrace(PTRACE_CONT, de.threadid, 0, 0) == 0));
 
 
-                        td->isPaused=0;
+                        td->isPaused = 0;
                         debug_log("r=%d\n", r);
                     }
                 }
 
 
-            }
-            else
+            } else
                 debug_log("Invalid tid\n");
 
-        }
-        else
-        {
+        } else {
             debug_log("Not the debugger thread. Pass to serverthread");
 #pragma pack(1)
-            struct
-            {
+            struct {
                 char command;
                 HANDLE hProcess;
                 int tid;
@@ -1225,22 +1148,20 @@ int GetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type)
             } gtc;
 #pragma pack()
 
-            gtc.command=CMD_GETTHREADCONTEXT;
-            gtc.hProcess=hProcess;
-            gtc.tid=tid;
-            gtc.type=type;
+            gtc.command = CMD_GETTHREADCONTEXT;
+            gtc.hProcess = hProcess;
+            gtc.tid = tid;
+            gtc.type = type;
 
 
-            if (pthread_mutex_lock(&debugsocketmutex) == 0)
-            {
+            if (pthread_mutex_lock(&debugsocketmutex) == 0) {
                 debug_log("Sending message to the debuggerthread\n");
 
                 sendall(p->debuggerClient, &gtc, sizeof(gtc), 0);
                 WakeDebuggerThread();
                 recvall(p->debuggerClient, &r, sizeof(r), MSG_WAITALL);
 
-                if (r)
-                {
+                if (r) {
                     //followed by the contextsize
                     uint32_t structsize;
 
@@ -1253,8 +1174,7 @@ int GetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type)
             }
 
         }
-    }
-    else
+    } else
         debug_log("invalid handle\n");
 
 
@@ -1265,40 +1185,32 @@ int GetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type)
  * Sets the context of the given thread
  * Fails if the thread is not suspended first
  */
-int SetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type)
-{
-    int r=FALSE;
+int SetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type) {
+    int r = FALSE;
     debug_log("SetThreadContext(%d)\n", tid);
 
 
-
-    if (tid<=0)
-    {
+    if (tid <= 0) {
         debug_log("Invalid tid\n");
         return FALSE;
     }
 
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
 
-
-        if (p->debuggerThreadID==pthread_self())
-        {
-            PThreadData td=GetThreadData(p, tid);
+        if (p->debuggerThreadID == pthread_self()) {
+            PThreadData td = GetThreadData(p, tid);
 
             debug_log("Inside debuggerthread\n");
 
-            if (td)
-            {
+            if (td) {
                 DebugEvent de;
-                int wasPaused=td->isPaused;
-                int k=0;
+                int wasPaused = td->isPaused;
+                int k = 0;
 
 
-                while ((td->isPaused==0) && (k<10))
-                {
+                while ((td->isPaused == 0) && (k < 10)) {
                     debug_log("This thread was not paused. Pausing it\n");
                     syscall(__NR_tkill, tid, SIGSTOP);
                     if (WaitForDebugEventNative(p, &de, tid, 100))
@@ -1309,49 +1221,45 @@ int SetThreadContext(HANDLE hProcess, int tid, PCONTEXT Context, int type)
 
                 //the thread is paused, so fetch the data
 
-                k=setRegisters(tid, &Context->regs);
+                k = setRegisters(tid, &Context->regs);
 
 
                 //k=safe_ptrace(PTRACE_SETREGS, tid, 0, &Context->regs);
                 debug_log("setRegisters() returned %d\n", k);
 
-                if (k==0)
-                    r=TRUE;
+                if (k == 0)
+                    r = TRUE;
                 else
-                    r=FALSE;
+                    r = FALSE;
 
 
-                if (!wasPaused)
-                {
+                if (!wasPaused) {
                     //continue if sigstop
-                    PThreadData td=GetThreadData(p, tid);
+                    PThreadData td = GetThreadData(p, tid);
 
                     debug_log("The thread was not paused, so resuming it now\n");
 
-                    if (de.debugevent!=SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
+                    if (de.debugevent !=
+                        SIGSTOP) //in case a breakpoint or something else happened before sigstop happened
                     {
                         debug_log("Not a SIGSTOP. Adding to queue and leave suspended\n");
                         AddDebugEventToQueue(p, &de);
-                        td->isPaused=1;
-                    }
-                    else
-                    {
-                        r=(r && (safe_ptrace(PTRACE_CONT, de.threadid, 0,0)==0));
+                        td->isPaused = 1;
+                    } else {
+                        r = (r && (safe_ptrace(PTRACE_CONT, de.threadid, 0, 0) == 0));
 
 
-                        td->isPaused=0;
+                        td->isPaused = 0;
                         debug_log("r=%d\n", r);
                     }
                 }
 
 
-            }
-            else
+            } else
                 debug_log("Invalid tid\n");
 
         }
-    }
-    else
+    } else
         debug_log("invalid handle\n");
 
     return r;
@@ -1366,39 +1274,33 @@ int SuspendThread(HANDLE hProcess, int tid)
  * If it wasn't stopped, stop it, and fetch the debug event
  */
 {
-    int result=-1;
+    int result = -1;
 
     debug_log("SuspendThread(%d)\n", tid);
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
-        PThreadData t=GetThreadData(p, tid);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
+        PThreadData t = GetThreadData(p, tid);
 
-        if (t==NULL)
-        {
+        if (t == NULL) {
             debug_log("Invalid thread\n");
             return -1;
         }
 
-        if (p->debuggerThreadID==pthread_self())
-        {
+        if (p->debuggerThreadID == pthread_self()) {
             //inside the debuggerthrad
             debug_log("Inside the debugger thread.\n");
 
-            if (t->isPaused)
-            {
+            if (t->isPaused) {
                 debug_log("Already paused\n");
 
-                if (t->suspendCount==0)
-                {
+                if (t->suspendCount == 0) {
                     //first time suspend. Gather the debug event and remove it from the queue (hardly ever, most of the time it's just the currently broken thread)
 
-                    if (p->debuggedThreadEvent.threadid==tid) //it's the currently suspended thread
-                        t->suspendedDevent=p->debuggedThreadEvent;
-                    else
-                    {
+                    if (p->debuggedThreadEvent.threadid == tid) //it's the currently suspended thread
+                        t->suspendedDevent = p->debuggedThreadEvent;
+                    else {
                         //go through the queuelist to find the debug event and remove it
-                        t->suspendedDevent=*FindThreadDebugEventInQueue(p,tid);
+                        t->suspendedDevent = *FindThreadDebugEventInQueue(p, tid);
                         RemoveThreadDebugEventFromQueue(p, tid);
                     }
                 }
@@ -1406,13 +1308,10 @@ int SuspendThread(HANDLE hProcess, int tid)
                 t->suspendCount++;
 
 
-            }
-            else
-            {
+            } else {
                 debug_log("Not yet paused\n");
 
-                while (t->isPaused==0)
-                {
+                while (t->isPaused == 0) {
                     syscall(__NR_tkill, tid, SIGSTOP);
                     if (WaitForDebugEventNative(p, &t->suspendedDevent, tid, 100))
                         break;
@@ -1427,25 +1326,21 @@ int SuspendThread(HANDLE hProcess, int tid)
 
 
             //PThreadData t=GetThreadData(tid);
-        }
-        else
-        {
+        } else {
             debug_log("Not from the debugger thread. Switching...\n");
 #pragma pack(1)
-            struct
-            {
+            struct {
                 char command;
                 HANDLE hProcess;
                 int tid;
             } st;
 #pragma pack()
 
-            st.command=CMD_SUSPENDTHREAD;
-            st.hProcess=hProcess;
-            st.tid=tid;
+            st.command = CMD_SUSPENDTHREAD;
+            st.hProcess = hProcess;
+            st.tid = tid;
 
-            if (pthread_mutex_lock(&debugsocketmutex) == 0)
-            {
+            if (pthread_mutex_lock(&debugsocketmutex) == 0) {
                 sendall(p->debuggerClient, &st, sizeof(st), 0);
                 WakeDebuggerThread();
                 recvall(p->debuggerClient, &result, sizeof(result), MSG_WAITALL);
@@ -1455,11 +1350,9 @@ int SuspendThread(HANDLE hProcess, int tid)
 
             }
         }
-    }
-    else
-    {
+    } else {
         debug_log("invalid handle\n");
-        result=-1;
+        result = -1;
     }
 
     return result;
@@ -1474,78 +1367,64 @@ int ResumeThread(HANDLE hProcess, int tid)
     int result;
 
     debug_log("ResumeThread(%d)\n", tid);
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
-        PThreadData t=GetThreadData(p, tid);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
+        PThreadData t = GetThreadData(p, tid);
 
-        if (t==NULL)
-        {
+        if (t == NULL) {
             debug_log("Invalid thread\n");
             return -1;
         }
 
-        if (p->debuggerThreadID==pthread_self())
-        {
+        if (p->debuggerThreadID == pthread_self()) {
             //inside the debuggerthread
             debug_log("Inside the debugger thread.\n");
 
-            if ((t->isPaused) && (t->suspendCount>0))
-            {
+            if ((t->isPaused) && (t->suspendCount > 0)) {
 
                 t->suspendCount--;
 
-                result=t->suspendCount;
+                result = t->suspendCount;
 
 
-                if (t->suspendCount==0)
-                {
+                if (t->suspendCount == 0) {
                     //reached 0, continue process if sigstop, else add to queue
-                    PThreadData td=GetThreadData(p, tid);
+                    PThreadData td = GetThreadData(p, tid);
                     debug_log("suspeneCount==0\n");
 
-                    if (t->suspendedDevent.debugevent==SIGSTOP)
-                    {
+                    if (t->suspendedDevent.debugevent == SIGSTOP) {
                         debug_log("SIGSTOP: Continue thread without queing\n");
-                        safe_ptrace(PTRACE_CONT, t->suspendedDevent.threadid, 0,0);
-                        td->isPaused=0;
-                    }
-                    else
-                    {
+                        safe_ptrace(PTRACE_CONT, t->suspendedDevent.threadid, 0, 0);
+                        td->isPaused = 0;
+                    } else {
                         debug_log("Not a SIGSTOP Add to the event queue\n");
-                        td->isPaused=1;
+                        td->isPaused = 1;
                         AddDebugEventToQueue(p, &t->suspendedDevent);
                         WakeDebuggerThread();
                     }
                 }
-            }
-            else
-            {
+            } else {
                 debug_log("Failure resuming this thread\n");
 
             }
 
 
             //PThreadData t=GetThreadData(tid);
-        }
-        else
-        {
+        } else {
             debug_log("Not from the debugger thread. Switching...\n");
 #pragma pack(1)
-            struct
-            {
+            struct {
                 char command;
                 HANDLE hProcess;
                 int tid;
             } rt;
 #pragma pack()
 
-            rt.command=CMD_RESUMETHREAD;
-            rt.hProcess=hProcess;
-            rt.tid=tid;
+            rt.command = CMD_RESUMETHREAD;
+            rt.hProcess = hProcess;
+            rt.tid = tid;
 
-            if (pthread_mutex_lock(&debugsocketmutex) == 0)
-            {
+            if (pthread_mutex_lock(&debugsocketmutex) == 0) {
                 sendall(p->debuggerClient, &rt, sizeof(rt), 0);
                 WakeDebuggerThread();
                 recvall(p->debuggerClient, &result, sizeof(result), MSG_WAITALL);
@@ -1553,11 +1432,9 @@ int ResumeThread(HANDLE hProcess, int tid)
                 pthread_mutex_unlock(&debugsocketmutex);
             }
         }
-    }
-    else
-    {
+    } else {
         debug_log("invalid handle\n");
-        result=-1;
+        result = -1;
     }
 
     return result;
@@ -1568,29 +1445,27 @@ int RemoveThreadDebugEventFromQueue(PProcessData p, int tid)
  * removes the debug event from the queue
  */
 {
-    int result=FALSE;
+    int result = FALSE;
     struct DebugEventQueueElement *deqe;
 
     pthread_mutex_lock(&p->debugEventQueueMutex);
 
     // debug_log("RemoveThreadDebugEventFromQueue(%d)\n", tid);
 
-    deqe=p->debugEventQueue.tqh_first;
-    while (deqe)
-    {
+    deqe = p->debugEventQueue.tqh_first;
+    while (deqe) {
         // debug_log("deqe->de.threadid=%d  (looking for %d)\n", deqe->de.threadid, tid);
-        if (deqe->de.threadid==tid)
-        {
+        if (deqe->de.threadid == tid) {
             //printf("Found. Removing it\n");
             TAILQ_REMOVE(&p->debugEventQueue, deqe, entries);
 
             free(deqe);
-            result=TRUE;
+            result = TRUE;
             break;
         }
 
         // debug_log("Not what I wanted. Check next\n");
-        deqe=deqe->entries.tqe_next;
+        deqe = deqe->entries.tqe_next;
     }
 
 
@@ -1604,20 +1479,18 @@ PDebugEvent FindThreadDebugEventInQueue(PProcessData p, int tid)
  * Note that it returns a pointer to it. If you plan on removing it from the queue, copy the results manually
  */
 {
-    PDebugEvent result=NULL;
+    PDebugEvent result = NULL;
     struct DebugEventQueueElement *deqe;
     pthread_mutex_lock(&p->debugEventQueueMutex);
 
-    deqe=p->debugEventQueue.tqh_first;
-    while (deqe)
-    {
-        if ((tid==-1) || (deqe->de.threadid==tid))
-        {
-            result=&deqe->de;
+    deqe = p->debugEventQueue.tqh_first;
+    while (deqe) {
+        if ((tid == -1) || (deqe->de.threadid == tid)) {
+            result = &deqe->de;
             break;
         }
 
-        deqe=deqe->entries.tqe_next;
+        deqe = deqe->entries.tqe_next;
     }
 
 
@@ -1625,29 +1498,26 @@ PDebugEvent FindThreadDebugEventInQueue(PProcessData p, int tid)
     return result;
 }
 
-void AddDebugEventToQueue(PProcessData p, PDebugEvent devent)
-{
+void AddDebugEventToQueue(PProcessData p, PDebugEvent devent) {
     struct DebugEventQueueElement *deqe;
 
-    if (devent->debugevent==SIGSTOP)
-    {
+    if (devent->debugevent == SIGSTOP) {
         debug_log("<<<<<--------------------SIGSTOP ADDED TO THE QUEUE!\n");
     }
 
     pthread_mutex_lock(&p->debugEventQueueMutex);
 
-    deqe=malloc(sizeof(struct DebugEventQueueElement));
-    deqe->de=*devent;
+    deqe = malloc(sizeof(struct DebugEventQueueElement));
+    deqe->de = *devent;
 
     TAILQ_INSERT_TAIL(&p->debugEventQueue, deqe, entries);
 
     pthread_mutex_unlock(&p->debugEventQueueMutex);
 }
 
-int GetStopSignalFromThread(int tid)
-{
+int GetStopSignalFromThread(int tid) {
     siginfo_t si;
-    if (safe_ptrace(PTRACE_GETSIGINFO, tid, NULL, &si)==0)
+    if (safe_ptrace(PTRACE_GETSIGINFO, tid, NULL, &si) == 0)
         return si.si_signo;
     else
         return -1;
@@ -1671,24 +1541,22 @@ int WaitForDebugEventNative(PProcessData p, PDebugEvent devent, int tid, int tim
 
 
     //first check if there is already a thread waiting
-    currentTID=1;
-    while (currentTID>0)
-    {
-        currentTID=waitpid(tid, &status, __WALL | WNOHANG);
+    currentTID = 1;
+    while (currentTID > 0) {
+        currentTID = waitpid(tid, &status, __WALL | WNOHANG);
 
         //printf("First waitid=%d\n", currentTID);
 
-        if (currentTID>0)
-        {
-            devent->threadid=currentTID;
-            devent->debugevent=GetStopSignalFromThread(devent->threadid);
+        if (currentTID > 0) {
+            devent->threadid = currentTID;
+            devent->debugevent = GetStopSignalFromThread(devent->threadid);
 
-            PThreadData td=GetThreadData(p, currentTID);
+            PThreadData td = GetThreadData(p, currentTID);
             if (td)
-                td->isPaused=1;
+                td->isPaused = 1;
 
 
-            if ((tid==-1) || (currentTID==tid))
+            if ((tid == -1) || (currentTID == tid))
                 return TRUE;
 
             //still here, this wasn't what I was looking for...
@@ -1715,86 +1583,77 @@ int WaitForDebugEventNative(PProcessData p, PDebugEvent devent, int tid, int tim
     // fflush(stdout);
 
 
-    if (timeout>=0)
-    {
+    if (timeout >= 0) {
         //wait till there is an event
 
-        if (timeout>0)
-        {
+        if (timeout > 0) {
             struct timespec abstime;
-            struct timeval current,wanted, diff;
+            struct timeval current, wanted, diff;
             int timedwait;
 
             // debug_log("timed wait\n");
 
             memset(&abstime, 0, sizeof(abstime));
-            gettimeofday(&current,NULL);
+            gettimeofday(&current, NULL);
 
-            diff.tv_sec=(timeout / 1000);
-            diff.tv_usec=(timeout % 1000)*1000;
+            diff.tv_sec = (timeout / 1000);
+            diff.tv_usec = (timeout % 1000) * 1000;
 
             timeradd(&current, &diff, &wanted);
 
-            abstime.tv_sec=wanted.tv_sec;
-            abstime.tv_nsec=wanted.tv_usec*1000;
+            abstime.tv_sec = wanted.tv_sec;
+            abstime.tv_nsec = wanted.tv_usec * 1000;
 
-            currentTID=-1;
-            while (currentTID<=0)
-            {
-                timedwait=sem_timedwait(&sem_DebugThreadEvent, &abstime);
+            currentTID = -1;
+            while (currentTID <= 0) {
+                timedwait = sem_timedwait(&sem_DebugThreadEvent, &abstime);
                 // if (log==1)
                 //    debug_log("log=1: sem_timedwait=%d\n", timedwait);
 
-                if (timedwait==0)
-                {
+                if (timedwait == 0) {
                     //it got signaled
                     //check if there is a debugger thread message waiting
                     // if (log==1)
                     //   debug_log("Checking for dispatch command\n");
 
                     CheckForAndDispatchCommand(p->debuggerServer);
-                    if (VerboseLevel>10)
+                    if (VerboseLevel > 10)
                         debug_log("CheckForAndDispatchCommand returned\n");
 
                     //check if an event got queued for this thread by the dispatcher
-                    PDebugEvent e=FindThreadDebugEventInQueue(p, tid);
-                    if (e)
-                    {
-                        debug_log("There was a queued event after CheckForAndDispatchCommand. TID=%ld (wanted %d)\n", e->threadid, tid);
-                        currentTID=e->threadid;
+                    PDebugEvent e = FindThreadDebugEventInQueue(p, tid);
+                    if (e) {
+                        debug_log("There was a queued event after CheckForAndDispatchCommand. TID=%ld (wanted %d)\n",
+                                  e->threadid, tid);
+                        currentTID = e->threadid;
 
-                        r=RemoveThreadDebugEventFromQueue(p, currentTID);
+                        r = RemoveThreadDebugEventFromQueue(p, currentTID);
                         debug_log("RemoveThreadDebugEventFromQueue returned %d\n", r);
-                    }
-                    else
-                        currentTID=waitpid(tid, &status, __WALL | WNOHANG);
+                    } else
+                        currentTID = waitpid(tid, &status, __WALL | WNOHANG);
 
-                    if (VerboseLevel>10)
+                    if (VerboseLevel > 10)
                         debug_log("currentTID = %d\n", currentTID);
 
-                    if (currentTID>0)
-                    {
-                        devent->threadid=currentTID;
-                        devent->debugevent=GetStopSignalFromThread(devent->threadid);
+                    if (currentTID > 0) {
+                        devent->threadid = currentTID;
+                        devent->debugevent = GetStopSignalFromThread(devent->threadid);
 
-                        PThreadData td=GetThreadData(p, currentTID);
+                        PThreadData td = GetThreadData(p, currentTID);
                         if (td)
-                            td->isPaused=1;
+                            td->isPaused = 1;
 
-                        if ((tid==-1) || (currentTID==tid))
+                        if ((tid == -1) || (currentTID == tid))
                             return TRUE;
 
                         //still here
                         debug_log("Still here so currentTID(%d) is not the same as tid (%d)\n", currentTID, tid);
                         AddDebugEventToQueue(p, devent);
                     }
-                    currentTID=-1; //retry
+                    currentTID = -1; //retry
 
-                }
-                else
-                {
-                    if (errno==ETIMEDOUT)
-                    {
+                } else {
+                    if (errno == ETIMEDOUT) {
                         //printf("timeout\n");
                         return FALSE;
                     }
@@ -1802,46 +1661,39 @@ int WaitForDebugEventNative(PProcessData p, PDebugEvent devent, int tid, int tim
                     //  debug_log("Not a timeout. Retry\n");
                 }
             }
-        }
-        else
-        {
+        } else {
             //no wait
             //printf("no wait\n");
 
 
         }
 
-    }
-    else
-    {
+    } else {
         //printf("Infinite wait\n");
-        currentTID=-1;
-        while (currentTID<0)
-        {
-            currentTID=waitpid(tid, &status, __WALL);
-            if (currentTID>0)
-            {
-                devent->threadid=currentTID;
-                devent->debugevent=GetStopSignalFromThread(devent->threadid);
+        currentTID = -1;
+        while (currentTID < 0) {
+            currentTID = waitpid(tid, &status, __WALL);
+            if (currentTID > 0) {
+                devent->threadid = currentTID;
+                devent->debugevent = GetStopSignalFromThread(devent->threadid);
 
-                PThreadData td=GetThreadData(p, currentTID);
+                PThreadData td = GetThreadData(p, currentTID);
                 if (td)
-                    td->isPaused=1;
+                    td->isPaused = 1;
 
-                if ((tid==-1) || (currentTID==tid))
+                if ((tid == -1) || (currentTID == tid))
                     return TRUE;
 
                 //still here
                 AddDebugEventToQueue(p, devent);
             }
 
-            if ((currentTID==-1) && (errno!=EINTR))
-            {
+            if ((currentTID == -1) && (errno != EINTR)) {
                 debug_log("WaitForDebugEventNative: Infinite wait: Could not wait for tid %d (errno=%d)\n", tid, errno);
                 return FALSE; //something bad happened
             }
 
-            currentTID=-1;
+            currentTID = -1;
         }
 
     }
@@ -1860,21 +1712,19 @@ int WaitForDebugEvent(HANDLE hProcess, PDebugEvent devent, int timeout)
  *Does not care about which thread to wait for
  */
 {
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
-        if (p->debuggedThreadEvent.threadid==0)
-        {
-            int r=0;
+        if (p->debuggedThreadEvent.threadid == 0) {
+            int r = 0;
 
             int status;
             int tid;
-            struct DebugEventQueueElement *de=NULL;
+            struct DebugEventQueueElement *de = NULL;
 
             //check the queue (first one in the list)
             pthread_mutex_lock(&p->debugEventQueueMutex);
-            de=TAILQ_FIRST(&p->debugEventQueue);
+            de = TAILQ_FIRST(&p->debugEventQueue);
 
             if (de)
                 TAILQ_REMOVE(&p->debugEventQueue, de, entries);
@@ -1885,29 +1735,26 @@ int WaitForDebugEvent(HANDLE hProcess, PDebugEvent devent, int timeout)
             if (de) //there was a queued event, return it
             {
                 debug_log("Returning queued event (sig=%d,  thread=%ld)\n", de->de.debugevent, de->de.threadid);
-                if (de->de.debugevent==SIGSTOP)
-                {
+                if (de->de.debugevent == SIGSTOP) {
                     debug_log("<---Something queued a SIGSTOP--->\n");
                 }
 
-                *devent=de->de;
-                p->debuggedThreadEvent=*devent;
+                *devent = de->de;
+                p->debuggedThreadEvent = *devent;
                 free(de);
 
-                r=1; //mark that a queued event happened
+                r = 1; //mark that a queued event happened
             }
 
             if (!r) //not a queued event
-                r=WaitForDebugEventNative(p, devent, -1, timeout);
+                r = WaitForDebugEventNative(p, devent, -1, timeout);
 
 
-            if (r)
-            {
-                p->debuggedThreadEvent=*devent;
+            if (r) {
+                p->debuggedThreadEvent = *devent;
 
 
-                if (p->debuggedThreadEvent.debugevent==SIGTRAP)
-                {
+                if (p->debuggedThreadEvent.debugevent == SIGTRAP) {
                     siginfo_t si;
                     debug_log("SIGTRAP\n");
 
@@ -1928,62 +1775,64 @@ int WaitForDebugEvent(HANDLE hProcess, PDebugEvent devent, int timeout)
 
 #if defined __i386__ || defined __x86_64__
                     //use DR6 to determine which bp (if possible)
-                    uintptr_t DR0,DR1,DR2,DR3,DR7, IP;
+                    uintptr_t DR0, DR1, DR2, DR3, DR7, IP;
                     regDR6 DR6;
 #if defined __i386__
                     IP=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, regs.eip), 0);
 #else
-                    IP=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, regs.rip), 0);
+                    IP = safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, regs.rip),
+                                     0);
 #endif
-                    DR0=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[0]), 0);
-                    DR1=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[1]), 0);
-                    DR2=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[2]), 0);
-                    DR3=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[3]), 0);
+                    DR0 = safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid,
+                                      offsetof(struct user, u_debugreg[0]), 0);
+                    DR1 = safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid,
+                                      offsetof(struct user, u_debugreg[1]), 0);
+                    DR2 = safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid,
+                                      offsetof(struct user, u_debugreg[2]), 0);
+                    DR3 = safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid,
+                                      offsetof(struct user, u_debugreg[3]), 0);
 
-                    DR6.value=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[6]), 0);
-                    DR7=safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[7]), 0);
+                    DR6.value = safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid,
+                                            offsetof(struct user, u_debugreg[6]), 0);
+                    DR7 = safe_ptrace(PTRACE_PEEKUSER, p->debuggedThreadEvent.threadid,
+                                      offsetof(struct user, u_debugreg[7]), 0);
 
-                    debug_log("DR0=%lx\n",DR0);
-                    debug_log("DR1=%lx\n",DR1);
-                    debug_log("DR2=%lx\n",DR2);
-                    debug_log("DR3=%lx\n",DR3);
-                    debug_log("DR6=%lx\n",DR6.value);
-                    debug_log("DR7=%lx\n",DR7);
-                    debug_log("IP=%lx\n",IP);
+                    debug_log("DR0=%lx\n", DR0);
+                    debug_log("DR1=%lx\n", DR1);
+                    debug_log("DR2=%lx\n", DR2);
+                    debug_log("DR3=%lx\n", DR3);
+                    debug_log("DR6=%lx\n", DR6.value);
+                    debug_log("DR7=%lx\n", DR7);
+                    debug_log("IP=%lx\n", IP);
 
-                    p->debuggedThreadEvent.address=0; //something unexpected
+                    p->debuggedThreadEvent.address = 0; //something unexpected
                     if (DR6.B0)
-                        p->debuggedThreadEvent.address=DR0;
-                    else
-                    if (DR6.B1)
-                        p->debuggedThreadEvent.address=DR1;
-                    else
-                    if (DR6.B2)
-                        p->debuggedThreadEvent.address=DR2;
-                    else
-                    if (DR6.B3)
-                        p->debuggedThreadEvent.address=DR3;
-                    else
-                    if (DR6.BS) //single step
-                        p->debuggedThreadEvent.address=1;
+                        p->debuggedThreadEvent.address = DR0;
+                    else if (DR6.B1)
+                        p->debuggedThreadEvent.address = DR1;
+                    else if (DR6.B2)
+                        p->debuggedThreadEvent.address = DR2;
+                    else if (DR6.B3)
+                        p->debuggedThreadEvent.address = DR3;
+                    else if (DR6.BS) //single step
+                        p->debuggedThreadEvent.address = 1;
 
 
-                    safe_ptrace(PTRACE_POKEUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[6]), 0); //not sure if needed, or if this should be moved to continuefromdebugevent
+                    safe_ptrace(PTRACE_POKEUSER, p->debuggedThreadEvent.threadid, offsetof(struct user, u_debugreg[6]),
+                                0); //not sure if needed, or if this should be moved to continuefromdebugevent
 
 #endif
                     debug_log("p->debuggedThreadEvent.address=%lx\n", p->debuggedThreadEvent.address);
 
-                    devent->address=p->debuggedThreadEvent.address;
+                    devent->address = p->debuggedThreadEvent.address;
                 }
             }
 
             return r;
-        }
-        else
-        {
-            *devent=p->debuggedThreadEvent;
+        } else {
+            *devent = p->debuggedThreadEvent;
             debug_log("Can not wait for a debug event when a thread is still paused\n");
-            debug_log("tid=%d  debugevent=%d\n", (int)devent->threadid, devent->debugevent);
+            debug_log("tid=%d  debugevent=%d\n", (int) devent->threadid, devent->debugevent);
             return 1; //success and just handle this event
         }
 
@@ -1991,38 +1840,34 @@ int WaitForDebugEvent(HANDLE hProcess, PDebugEvent devent, int timeout)
     return 0;
 }
 
-int ContinueFromDebugEvent(HANDLE hProcess, int tid, int ignoresignal)
-{
+int ContinueFromDebugEvent(HANDLE hProcess, int tid, int ignoresignal) {
     //printf("ContinueFromDebugEvent called\n");
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
-        PThreadData td=GetThreadData(p, tid);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
+        PThreadData td = GetThreadData(p, tid);
         siginfo_t si;
 
         //printf("td==%p\n", td);
 
-        if (p->debuggedThreadEvent.debugevent<0) //virtual debug event. Just ignore
+        if (p->debuggedThreadEvent.debugevent < 0) //virtual debug event. Just ignore
         {
             debug_log("Virtual event. Ignore\n");
-            p->debuggedThreadEvent.threadid=0;
-            p->debuggedThreadEvent.debugevent=0;
+            p->debuggedThreadEvent.threadid = 0;
+            p->debuggedThreadEvent.debugevent = 0;
             return 1; //ignore it
         }
 
 
-        if (td==NULL)
-        {
+        if (td == NULL) {
             debug_log("Invalid thread\n");
-            p->debuggedThreadEvent.threadid=0;
+            p->debuggedThreadEvent.threadid = 0;
 
             return 0; //invalid thread
         }
 
         // debug_log("td->suspendcount=%d\n", td->suspendCount);
 
-        if (td->suspendCount>0)
-        {
+        if (td->suspendCount > 0) {
             debug_log("Tried to continue a suspended thread (suspendcount=%d)\n", td->suspendCount);
             return 1; //keep it suspended
         }
@@ -2035,38 +1880,33 @@ int ContinueFromDebugEvent(HANDLE hProcess, int tid, int ignoresignal)
 
 
 
-        if (safe_ptrace(PTRACE_GETSIGINFO, tid, NULL, &si)==0)
-        {
-            int signal=ignoresignal?0:si.si_signo;
+        if (safe_ptrace(PTRACE_GETSIGINFO, tid, NULL, &si) == 0) {
+            int signal = ignoresignal ? 0 : si.si_signo;
 
             // debug_log("si.si_signo=%d\n", si.si_signo);
             // debug_log("si.si_code=%d\n", si.si_code);
 
 
 
-            if ((signal==19) || (signal==21)) //STOPPED
+            if ((signal == 19) || (signal == 21)) //STOPPED
             {
-                signal=0;
+                signal = 0;
             }
 
             //printf("Continue %d with signal %d\n", tid, signal);
 
             int result;
-            if (ignoresignal==2)
-            {
+            if (ignoresignal == 2) {
                 debug_log("Single step\n");
 
-                result=safe_ptrace(PTRACE_SINGLESTEP, tid, 0,0);
-                if (result!=0)
-                {
+                result = (int)safe_ptrace(PTRACE_SINGLESTEP, tid, 0, 0);
+                if (result != 0) {
                     debug_log("PTRACE_SINGLESTEP failed (%d). Shit happens\n", errno);
-                    result=safe_ptrace(PTRACE_CONT, tid, 0,signal);
+                    result = (int)safe_ptrace(PTRACE_CONT, tid, 0, (void *) signal);
                 }
 
-            }
-            else
-            {
-                result=safe_ptrace(PTRACE_CONT, tid, 0,signal);
+            } else {
+                result = (int)safe_ptrace(PTRACE_CONT, tid, 0, (void *) signal);
             }
 
 
@@ -2074,40 +1914,33 @@ int ContinueFromDebugEvent(HANDLE hProcess, int tid, int ignoresignal)
             // debug_log("Continue result=%d\n", result);
 
             if (td)
-                td->isPaused=0;
+                td->isPaused = 0;
 
 
-            if (result<0)
-            {
+            if (result < 0) {
                 debug_log("Failure to continue thread %d with signal %d\n", tid, signal);
                 RemoveThreadFromProcess(p, tid);
-                p->debuggedThreadEvent.threadid=0;
+                p->debuggedThreadEvent.threadid = 0;
                 return 0;
-            }
-            else
-            {
-                p->debuggedThreadEvent.threadid=0;
+            } else {
+                p->debuggedThreadEvent.threadid = 0;
                 return 1;
             }
-        }
-        else
+        } else
             debug_log("Failure getting sig info\n");
 
-    }
-    else
+    } else
         debug_log("Invalid handle\n");
 
     return 0;
 }
 
-int StopDebug(HANDLE hProcess)
-{
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+int StopDebug(HANDLE hProcess) {
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
         int i;
-        for (i=0; i<p->threadlistpos;i++)
-            if (safe_ptrace(PTRACE_DETACH, p->threadlist[i].tid,0,0)<0)
+        for (i = 0; i < p->threadlistpos; i++)
+            if (safe_ptrace(PTRACE_DETACH, p->threadlist[i].tid, 0, 0) < 0)
                 debug_log("Failed to detach from %ld\n", p->threadlist[i].tid);
     }
 
@@ -2115,31 +1948,26 @@ int StopDebug(HANDLE hProcess)
 
 }
 
-int WriteProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, void *buffer, int size)
-{
-    int byteswritten=0;
+int WriteProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, void *buffer, int size) {
+    int byteswritten = 0;
     int i;
 
     debug_log("WriteProcessMemoryDebug:");
-    for (i=0; i<size; i++)
-    {
-        debug_log("%.2x ", ((unsigned char *)buffer)[i]);
+    for (i = 0; i < size; i++) {
+        debug_log("%.2x ", ((unsigned char *) buffer)[i]);
     }
 
     debug_log("\n");
 
 
-
-
-    if (p->debuggerThreadID==pthread_self()) //this is the debugger thread
+    if (p->debuggerThreadID == pthread_self()) //this is the debugger thread
     {
-        int isdebugged=FindPausedThread(p); //find a paused thread if there is one
+        int isdebugged = FindPausedThread(p); //find a paused thread if there is one
         DebugEvent event;
 
-        event.threadid=isdebugged;
+        event.threadid = isdebugged;
 
-        if (!isdebugged)
-        {
+        if (!isdebugged) {
             // debug_log("Not currently debugging a thread. Suspending a random thread\n");
             kill(p->pid, SIGSTOP);
 
@@ -2153,88 +1981,81 @@ int WriteProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, vo
 
         //write the bytes
         {
-            int offset=0;
-            int max=size-sizeof(long int);
+            int offset = 0;
+            int max = size - sizeof(long int);
 
-            long int *address=(long int *)buffer;
+            long int *address = (long int *) buffer;
 
 
-            while (offset<max)
-            {
+            while (offset < max) {
                 debug_log("offset=%d max=%d\n", offset, max);
-                safe_ptrace(PTRACE_POKEDATA, p->pid, (void*)((uintptr_t)lpAddress+offset), (void *)*address);
+                safe_ptrace(PTRACE_POKEDATA, p->pid, (void *) ((uintptr_t) lpAddress + offset), (void *) *address);
 
                 address++;
-                offset+=sizeof(long int);
-                byteswritten+=sizeof(long int);
+                offset += sizeof(long int);
+                byteswritten += sizeof(long int);
             }
 
-            if (offset<size)
-            {
-                debug_log("Still some bytes left: %d\n", size-offset);
+            if (offset < size) {
+                debug_log("Still some bytes left: %d\n", size - offset);
                 //still a few bytes left
-                long int oldvalue=safe_ptrace(PTRACE_PEEKDATA, p->pid,  (void *)(uintptr_t)lpAddress+offset, (void*)0);
+                long int oldvalue = safe_ptrace(PTRACE_PEEKDATA, p->pid, (void *) (uintptr_t) lpAddress + offset,
+                                                (void *) 0);
 
-                unsigned char *oldbuf=(unsigned char *)&oldvalue;
-                unsigned char *newmem=(unsigned char *)address;
+                unsigned char *oldbuf = (unsigned char *) &oldvalue;
+                unsigned char *newmem = (unsigned char *) address;
                 int i;
 
                 debug_log("oldvalue=%lx\n", oldvalue);
 
-                for (i=0; i< (size-offset); i++)
-                    oldbuf[i]=newmem[i];
+                for (i = 0; i < (size - offset); i++)
+                    oldbuf[i] = newmem[i];
 
                 debug_log("newvalue=%lx\n", oldvalue);
 
 
-                i=safe_ptrace(PTRACE_POKEDATA, p->pid, (void*)((uintptr_t)lpAddress+offset), (void *)oldvalue);
+                i = safe_ptrace(PTRACE_POKEDATA, p->pid, (void *) ((uintptr_t) lpAddress + offset), (void *) oldvalue);
 
                 debug_log("ptrace poke returned %d\n", i);
-                if (i>=0)
-                    byteswritten+=size-offset;
+                if (i >= 0)
+                    byteswritten += size - offset;
 
             }
 
         }
 
 
-
-        if (!isdebugged)
-        {
-            PThreadData td=GetThreadData(p, event.threadid);
+        if (!isdebugged) {
+            PThreadData td = GetThreadData(p, event.threadid);
 
             //if a SIGSTOP happened just continue it, else the next time WaitForDebugEvent() runs it will get this event from the queue
-            if (event.debugevent==SIGSTOP)
-            {
+            if (event.debugevent == SIGSTOP) {
 
                 //  debug_log("Continue from sigstop\n");
 
-                safe_ptrace(PTRACE_CONT, event.threadid, 0,0);
+                safe_ptrace(PTRACE_CONT, event.threadid, 0, 0);
 
                 if (td)
-                    td->isPaused=0;
+                    td->isPaused = 0;
 
 
-            }
-            else
-            {
-                debug_log("WriteProcessMemoryDebug: Adding unexpected signal to eventqueue (event.debugevent=%d event.threadid)\n", event.debugevent, event.threadid);
+            } else {
+                debug_log(
+                        "WriteProcessMemoryDebug: Adding unexpected signal to eventqueue (event.debugevent=%d event.threadid)\n",
+                        event.debugevent, event.threadid);
 
                 AddDebugEventToQueue(p, &event);
                 if (td)
-                    td->isPaused=1;
+                    td->isPaused = 1;
             }
         }
 
-    }
-    else
-    {
+    } else {
         debug_log("WriteProcessMemoryDebug from outside the debuggerthread. Waking debuggerthread\n");
 
         //setup a rpm command
 #pragma pack(1)
-        struct
-        {
+        struct {
             uint8_t command;   //1
             uint32_t pHandle;  //5
             uint64_t address;  //13
@@ -2242,22 +2063,21 @@ int WriteProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, vo
         } wpm;
 #pragma pack()
 
-        unsigned char data [size];
+        unsigned char data[size];
         debug_log("sizeof wpm=%d\n", sizeof(wpm));
-        wpm.command=CMD_WRITEPROCESSMEMORY;
-        wpm.pHandle=hProcess;
-        wpm.address=(uintptr_t)lpAddress;
-        wpm.size=size;
+        wpm.command = CMD_WRITEPROCESSMEMORY;
+        wpm.pHandle = hProcess;
+        wpm.address = (uintptr_t) lpAddress;
+        wpm.size = size;
         memcpy(data, buffer, size);
 
 
 
         //and write it to the p->debuggerthreadfd and read out the data
         //aquire lock (I don't want other threads messing with the client socket)
-        if (pthread_mutex_lock(&debugsocketmutex) == 0)
-        {
+        if (pthread_mutex_lock(&debugsocketmutex) == 0) {
             sendall(p->debuggerClient, &wpm, sizeof(wpm), 0);
-            sendall (p-> debuggerClient, &data, size, 0);
+            sendall(p->debuggerClient, &data, size, 0);
             WakeDebuggerThread();
 
             recvall(p->debuggerClient, &byteswritten, sizeof(byteswritten), MSG_WAITALL);
@@ -2272,15 +2092,13 @@ int WriteProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, vo
     return byteswritten;
 }
 
-int WriteProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
-{
-    int written=0;
+int WriteProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size) {
+    int written = 0;
 
     debug_log("WriteProcessMemory(%d, %p, %p, %d\n", hProcess, lpAddress, buffer, size);
 
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
         if (p->isDebugged) //&& cannotdealwithotherthreads
         {
@@ -2289,59 +2107,54 @@ int WriteProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
             return WriteProcessMemoryDebug(hProcess, p, lpAddress, buffer, size);
         }
 
-        if (pthread_mutex_lock(&memorymutex) == 0)
-        {
-            if (safe_ptrace(PTRACE_ATTACH, p->pid,0,0)==0)
-            {
+        if (pthread_mutex_lock(&memorymutex) == 0) {
+            if (safe_ptrace(PTRACE_ATTACH, p->pid, 0, 0) == 0) {
                 int status;
-                pid_t pid=wait(&status);
-                int offset=0;
-                int max=size-sizeof(long int);
+                pid_t pid = wait(&status);
+                int offset = 0;
+                int max = size - sizeof(long int);
 
-                long int *address=(long int *)buffer;
+                long int *address = (long int *) buffer;
 
 
-                while (offset<max)
-                {
+                while (offset < max) {
                     debug_log("offset=%d max=%d\n", offset, max);
-                    safe_ptrace(PTRACE_POKEDATA, pid, (void*)((uintptr_t)lpAddress+offset), (void *)*address);
+                    safe_ptrace(PTRACE_POKEDATA, pid, (void *) ((uintptr_t) lpAddress + offset), (void *) *address);
 
                     address++;
-                    offset+=sizeof(long int);
+                    offset += sizeof(long int);
 
-                    written+=sizeof(long int);
+                    written += sizeof(long int);
                 }
 
-                if (offset<size)
-                {
-                    printf("Still some bytes left: %d\n", size-offset);
+                if (offset < size) {
+                    printf("Still some bytes left: %d\n", size - offset);
                     //still a few bytes left
-                    long int oldvalue=safe_ptrace(PTRACE_PEEKDATA, pid,  (void *)(uintptr_t)lpAddress+offset, (void*)0);
+                    long int oldvalue = safe_ptrace(PTRACE_PEEKDATA, pid, (void *) (uintptr_t) lpAddress + offset,
+                                                    (void *) 0);
 
-                    unsigned char *oldbuf=(unsigned char *)&oldvalue;
-                    unsigned char *newmem=(unsigned char *)address;
+                    unsigned char *oldbuf = (unsigned char *) &oldvalue;
+                    unsigned char *newmem = (unsigned char *) address;
                     int i;
 
                     debug_log("oldvalue=%lx\n", oldvalue);
 
-                    for (i=0; i< (size-offset); i++)
-                        oldbuf[i]=newmem[i];
+                    for (i = 0; i < (size - offset); i++)
+                        oldbuf[i] = newmem[i];
 
                     debug_log("newvalue=%lx\n", oldvalue);
 
 
-                    i=safe_ptrace(PTRACE_POKEDATA, pid, (void*)((uintptr_t)lpAddress+offset), (void *)oldvalue);
+                    i = safe_ptrace(PTRACE_POKEDATA, pid, (void *) ((uintptr_t) lpAddress + offset), (void *) oldvalue);
 
                     debug_log("ptrace poke returned %d\n", i);
-                    if (i>=0)
-                        written+=size-offset;
+                    if (i >= 0)
+                        written += size - offset;
 
                 }
 
 
-
-
-                safe_ptrace(PTRACE_DETACH, pid,0,0);
+                safe_ptrace(PTRACE_DETACH, pid, 0, 0);
             }
             //else
             //  debug_log("PTRACE ATTACH FAILED\n");
@@ -2350,14 +2163,12 @@ int WriteProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
         }
 
 
-
     }
 
     return written;
 }
 
-int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, void *buffer, int size)
-{
+int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, void *buffer, int size) {
     //problem: Only the thread that is currently debugging a stopped thread has read access
     //work around: add a que to the debugger thread that fills in this
     //que a ReadProcessMemory command with the debugger
@@ -2368,30 +2179,29 @@ int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, voi
     //the que will contain normal rpm command
 
 
-    int bytesread=0;
+    int bytesread = 0;
 
     // debug_log("ReadProcessMemoryDebug");
 //  debug_log("lpAddress=%p\n", lpAddress);
 
 
 
-    if (p->debuggerThreadID==pthread_self()) //this is the debugger thread
+    if (p->debuggerThreadID == pthread_self()) //this is the debugger thread
     {
-        int isdebugged=FindPausedThread(p); //find a paused thread if there is one
+        int isdebugged = FindPausedThread(p); //find a paused thread if there is one
         DebugEvent event;
 
-        event.threadid=isdebugged;
+        event.threadid = isdebugged;
 
 
         //printf("ReadProcessMemoryDebug inside debuggerthread (thread debbugged=%d)\n", isdebugged);
 
-        if (!isdebugged)
-        {
+        if (!isdebugged) {
             // debug_log("Not currently debugging a thread. Suspending a random thread\n");
             kill(p->pid, SIGSTOP);
 
             //printf("Going to wait for debug event\n");
-            if (WaitForDebugEventNative(p, &event, -1, -1)==FALSE) //wait for it myself
+            if (WaitForDebugEventNative(p, &event, -1, -1) == FALSE) //wait for it myself
             {
                 debug_log("WaitForDebugEventNative returned FALSE for a wait without timeout\n");
                 return 0;
@@ -2400,29 +2210,26 @@ int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, voi
             // debug_log("After WaitForDebugEventNative (tid=%d)\n", event.threadid);
         }
 
-        if(MEMORY_SEARCH_OPTION== 0)
-        {
+        if (MEMORY_SEARCH_OPTION == 0) {
 
-            int inflooptest=0;
+            int inflooptest = 0;
 
-            bytesread=-1;
-            while (bytesread==-1)
-            {
+            bytesread = -1;
+            while (bytesread == -1) {
                 inflooptest++;
 
-                if (inflooptest>10)
+                if (inflooptest > 10)
                     debug_log("FUUU");
 
 
 
                 //bytesread=pread(p->mem, buffer, size, (uintptr_t)lpAddress);
 
-                lseek64(p->mem, (uintptr_t)lpAddress, SEEK_SET);
-                bytesread=read(p->mem, buffer, size);
+                lseek64(p->mem, (uintptr_t) lpAddress, SEEK_SET);
+                bytesread = read(p->mem, buffer, size);
 
 
-                if ((bytesread<0) && (errno!=EINTR))
-                {
+                if ((bytesread < 0) && (errno != EINTR)) {
                     /*
                     debug_log("pread failed and not due to a signal: %d  (isdebugged=%d)\n", errno, isdebugged);
                     if (isdebugged)
@@ -2433,29 +2240,26 @@ int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, voi
                     debug_log("size=%d\n", size);
                     */
 
-                    bytesread=0;
+                    bytesread = 0;
 
-                    if (isdebugged)
-                    {
+                    if (isdebugged) {
                         // debug_log("trying to read from specific task\n");
 
                         int f;
                         char mempath[255];
 
-                        sprintf(mempath,"/proc/%d/task/%d/mem", p->pid, (int)event.threadid);
+                        sprintf(mempath, "/proc/%d/task/%d/mem", p->pid, (int) event.threadid);
                         // debug_log("Opening %s\n", mempath);
-                        f=open(mempath, O_RDONLY);
+                        f = open(mempath, O_RDONLY);
                         debug_log("f=%d\n", f);
-                        if (f>=0)
-                        {
+                        if (f >= 0) {
                             //bytesread=pread(f, buffer, size, (uintptr_t)lpAddress);
-                            lseek64(p->mem, (uintptr_t)lpAddress, SEEK_SET);
-                            bytesread=read(p->mem, buffer, size);
+                            lseek64(p->mem, (uintptr_t) lpAddress, SEEK_SET);
+                            bytesread = read(p->mem, buffer, size);
 
-                            if ((bytesread<0) && (errno!=EINTR))
-                            {
+                            if ((bytesread < 0) && (errno != EINTR)) {
                                 //  debug_log("Also failed on second try\n");
-                                bytesread=0;
+                                bytesread = 0;
                             }
                             close(f);
                         }
@@ -2465,103 +2269,90 @@ int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, voi
                     break;
                 }
             }
-        }
-        else
-        {
+        } else {
 
-            int offset=0;
-            int max=size-sizeof(long int);
+            int offset = 0;
+            int max = size - sizeof(long int);
 
-            long int *address = (long int *)buffer;
+            long int *address = (long int *) buffer;
 
             long int value = 0;
 
             int is_readable = 1;
 
-            while(offset<max)
-            {
+            while (offset < max) {
                 errno = 0;
-                value =  safe_ptrace(PTRACE_PEEKDATA, p->pid, (void*)((uintptr_t)lpAddress+offset), (void *)0);
+                value = safe_ptrace(PTRACE_PEEKDATA, p->pid, (void *) ((uintptr_t) lpAddress + offset), (void *) 0);
 
-                if(errno == 0)
-                {
+                if (errno == 0) {
                     *address = value;
 
                     address++;
-                    offset+=sizeof(long int);
+                    offset += sizeof(long int);
 
-                    bytesread+=sizeof(long int);
-                }
-                else
-                {
+                    bytesread += sizeof(long int);
+                } else {
                     is_readable = 0;
                     break;
                 }
 
             }
 
-            if(offset < size && is_readable)
-            {
+            if (offset < size && is_readable) {
                 errno = 0;
-                value =  safe_ptrace(PTRACE_PEEKDATA, p->pid, (void*)((uintptr_t)lpAddress+offset), (void *)0);
+                value = safe_ptrace(PTRACE_PEEKDATA, p->pid, (void *) ((uintptr_t) lpAddress + offset), (void *) 0);
 
-                if(errno == 0)
-                {
-                    memcpy(address,&value,size-offset);
+                if (errno == 0) {
+                    memcpy(address, &value, size - offset);
 
-                    int i = size-offset;
-                    if(i>=0)
-                        bytesread+=size-offset;
+                    int i = size - offset;
+                    if (i >= 0)
+                        bytesread += size - offset;
                 }
 
             }
         }
 
-        if (!isdebugged)
-        {
-            PThreadData td=GetThreadData(p, event.threadid);
+        if (!isdebugged) {
+            PThreadData td = GetThreadData(p, event.threadid);
 
             //if a SIGSTOP happened just continue it, else the next time WaitForDebugEvent() runs it will get this event from the queue
-            if (event.debugevent==SIGSTOP)
-            {
+            if (event.debugevent == SIGSTOP) {
 
                 //  debug_log("Continue from sigstop\n");
 
-                safe_ptrace(PTRACE_CONT, event.threadid, 0,0);
+                safe_ptrace(PTRACE_CONT, event.threadid, 0, 0);
 
                 if (td)
-                    td->isPaused=0;
+                    td->isPaused = 0;
 
 
-            }
-            else
-            {
-                debug_log("ReadProcessMemoryDebug: Adding unexpected signal to eventqueue (event.debugevent=%d event.threadid=%d)\n", event.debugevent, event.threadid);
+            } else {
+                debug_log(
+                        "ReadProcessMemoryDebug: Adding unexpected signal to eventqueue (event.debugevent=%d event.threadid=%d)\n",
+                        event.debugevent, event.threadid);
 
                 if (td)
-                    td->isPaused=1;
+                    td->isPaused = 1;
 
                 AddDebugEventToQueue(p, &event);
 
                 debug_log("After add\n");
 
-                VerboseLevel=1000000000;
+                VerboseLevel = 1000000000;
 
             }
         }
 
 
-    }
-    else
-    {
+    } else {
 
-        int tid=p->pid; //p->threadlist[p->threadlistpos-1];
+        int tid = p->pid; //p->threadlist[p->threadlistpos-1];
         // debug_log("ReadProcessMemoryDebug from outside the debuggerthread. Waking debuggerthread\n");
 
         //setup a rpm command
 #pragma pack(1)
-        struct
-        {
+        struct {
             uint8_t command;
             uint32_t pHandle;
             uint64_t address;
@@ -2571,16 +2362,15 @@ int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, voi
 #pragma pack()
 
 
-        rpm.command=CMD_READPROCESSMEMORY;
-        rpm.pHandle=hProcess;
-        rpm.address=(uintptr_t)lpAddress;
-        rpm.size=size;
-        rpm.compressed=0;
+        rpm.command = CMD_READPROCESSMEMORY;
+        rpm.pHandle = hProcess;
+        rpm.address = (uintptr_t) lpAddress;
+        rpm.size = size;
+        rpm.compressed = 0;
 
         //and write it to the p->debuggerthreadfd and read out the data
         //aquire lock (I don't want other threads messing with the client socket)
-        if (pthread_mutex_lock(&debugsocketmutex) == 0)
-        {
+        if (pthread_mutex_lock(&debugsocketmutex) == 0) {
             //  debug_log("Sending message to the debuggerthread\n");
 
             sendall(p->debuggerClient, &rpm, sizeof(rpm), 0);
@@ -2592,10 +2382,10 @@ int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, voi
 
             recvall(p->debuggerClient, &bytesread, sizeof(bytesread), MSG_WAITALL);
 
-            if (VerboseLevel>10)
+            if (VerboseLevel > 10)
                 debug_log("After waiting for debugger thread: bytesread=%d\n", bytesread);
 
-            if (bytesread>0)
+            if (bytesread > 0)
                 recvall(p->debuggerClient, buffer, bytesread, MSG_WAITALL);
 
 
@@ -2606,14 +2396,13 @@ int ReadProcessMemoryDebug(HANDLE hProcess, PProcessData p, void *lpAddress, voi
     }
 
 
-    if (VerboseLevel>10)
+    if (VerboseLevel > 10)
         debug_log("ReadProcessMemoryDebug returns %d\n", bytesread);
 
     return bytesread;
 }
 
-int ReadProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
-{
+int ReadProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size) {
     //idea in case this is too slow. always read a full page and keep the last 16 accessed pages.
     //only on cache miss, or if the cache is older than 1000 milliseconds fetch the page.
     //keep in mind that this routine can get called by multiple threads at the same time
@@ -2624,12 +2413,11 @@ int ReadProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
     // debug_log("ReadProcessMemory(%d, %p, %p, %d)\n", (int)hProcess, lpAddress, buffer, size);
 
     //printf("ReadProcessMemory\n");
-    int bread=0;
+    int bread = 0;
 
 
-    if (GetHandleType(hProcess) == htProcesHandle )
-    { //valid handle
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) { //valid handle
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
         //printf("hProcess=%d, lpAddress=%p, buffer=%p, size=%d\n", hProcess, lpAddress, buffer, size);
 
@@ -2642,77 +2430,67 @@ int ReadProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
 
         //printf("Read without debug\n");
 
-        if (pthread_mutex_lock(&memorymutex) == 0)
-        {
+        if (pthread_mutex_lock(&memorymutex) == 0) {
 
 
-            if (safe_ptrace(PTRACE_ATTACH, p->pid,0,0)==0)
-            {
+            if (safe_ptrace(PTRACE_ATTACH, p->pid, 0, 0) == 0) {
                 int status;
 
-                pid_t pid=wait(&status);
+                pid_t pid = wait(&status);
 
-                if(MEMORY_SEARCH_OPTION == 0)
-                {
+                if (MEMORY_SEARCH_OPTION == 0) {
 
-                    lseek64(p->mem, (uintptr_t)lpAddress, SEEK_SET);
+                    lseek64(p->mem, (uintptr_t) lpAddress, SEEK_SET);
 
-                    bread=read(p->mem, buffer, size);
+                    bread = read(p->mem, buffer, size);
 
-                    if (bread==-1)
-                    {
-                        bread=0;
+                    if (bread == -1) {
+                        bread = 0;
                         //printf("pread error for address %p (errno=%d) ", lpAddress, errno);
                         //printf("\n");
                     }
 
-                }
-                else
-                {
+                } else {
 
-                    int offset=0;
-                    int max=size-sizeof(long int);
+                    int offset = 0;
+                    int max = size - sizeof(long int);
 
-                    long int *address = (long int *)buffer;
+                    long int *address = (long int *) buffer;
 
                     long int value = 0;
 
                     int is_readable = 1;
 
-                    while(offset<max)
-                    {
+                    while (offset < max) {
                         errno = 0;
-                        value =  safe_ptrace(PTRACE_PEEKDATA, pid, (void*)((uintptr_t)lpAddress+offset), (void *)0);
+                        value = safe_ptrace(PTRACE_PEEKDATA, pid, (void *) ((uintptr_t) lpAddress + offset),
+                                            (void *) 0);
 
-                        if(errno == 0)
-                        {
+                        if (errno == 0) {
                             *address = value;
 
                             address++;
-                            offset+=sizeof(long int);
+                            offset += sizeof(long int);
 
-                            bread+=sizeof(long int);
-                        }
-                        else
-                        {
+                            bread += sizeof(long int);
+                        } else {
                             is_readable = 0;
                             break;
                         }
 
                     }
 
-                    if(offset < size && is_readable)
-                    {
+                    if (offset < size && is_readable) {
                         errno = 0;
-                        value =  safe_ptrace(PTRACE_PEEKDATA, pid, (void*)((uintptr_t)lpAddress+offset), (void *)0);
+                        value = safe_ptrace(PTRACE_PEEKDATA, pid, (void *) ((uintptr_t) lpAddress + offset),
+                                            (void *) 0);
 
-                        if(errno == 0)
-                        {
-                            memcpy(address,&value,size-offset);
+                        if (errno == 0) {
+                            memcpy(address, &value, size - offset);
 
-                            int i = size-offset;
-                            if(i>=0)
-                                bread+=size-offset;
+                            int i = size - offset;
+                            if (i >= 0)
+                                bread += size - offset;
                         }
 
                     }
@@ -2722,15 +2500,13 @@ int ReadProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
                 //printf("bread=%d size=%d\n", bread, size);
 
 
-                safe_ptrace(PTRACE_DETACH, pid,0,0);
-            }
-            else
+                safe_ptrace(PTRACE_DETACH, pid, 0, 0);
+            } else
                 debug_log("ptrace attach failed (pid=%d). This system might not be properly rooted\n", p->pid);
 
 
             pthread_mutex_unlock(&memorymutex);
-        }
-        else
+        } else
             debug_log("For some reason I failed to obtain a lock\n");
     }
     //else
@@ -2744,38 +2520,33 @@ int ReadProcessMemory(HANDLE hProcess, void *lpAddress, void *buffer, int size)
 }
 
 
-DWORD ProtectionStringToType(char *protectionstring)
-{
+DWORD ProtectionStringToType(char *protectionstring) {
     if (strchr(protectionstring, 's'))
         return MEM_MAPPED;
     else
         return MEM_PRIVATE;
 }
 
-uint32_t ProtectionStringToProtection(char *protectionstring)
-{
-    int w,x;
+uint32_t ProtectionStringToProtection(char *protectionstring) {
+    int w, x;
 
     if (strchr(protectionstring, 'x'))
-        x=1;
+        x = 1;
     else
-        x=0;
+        x = 0;
 
     if (strchr(protectionstring, 'w'))
-        w=1;
+        w = 1;
     else
-        w=0;
+        w = 0;
 
-    if (x)
-    {
+    if (x) {
         //executable
         if (w)
             return PAGE_EXECUTE_READWRITE;
         else
             return PAGE_EXECUTE_READ;
-    }
-    else
-    {
+    } else {
         //not executable
         if (w)
             return PAGE_READWRITE;
@@ -2784,25 +2555,26 @@ uint32_t ProtectionStringToProtection(char *protectionstring)
     }
 }
 
-void AddToRegionList(uint64_t base, uint64_t size, uint32_t type, uint32_t protection, RegionInfo **list, int *pos, int *max)
+void
+AddToRegionList(uint64_t base, uint64_t size, uint32_t type, uint32_t protection, RegionInfo **list, int *pos, int *max)
 //helper function for VirtualQueryExFull to add new entries to the list
 {
     //printf("Calling AddToRegionList\n");
 
-    debug_log("++>%llx->%llx : (%llx)  - %d\n", (unsigned long long)base, (unsigned long long)base+size, (unsigned long long)size, type);
+    debug_log("++>%llx->%llx : (%llx)  - %d\n", (unsigned long long) base, (unsigned long long) base + size,
+              (unsigned long long) size, type);
 
-    (*list)[*pos].baseaddress=base;
-    (*list)[*pos].size=size;
-    (*list)[*pos].type=type;
-    (*list)[*pos].protection=protection;
+    (*list)[*pos].baseaddress = base;
+    (*list)[*pos].size = size;
+    (*list)[*pos].type = type;
+    (*list)[*pos].protection = protection;
 
     (*pos)++;
 
-    if (*pos>=*max)
-    {
+    if (*pos >= *max) {
         debug_log("resize list\n");
-        *max=(*max)*2;
-        *list=(RegionInfo *)realloc(*list, sizeof(RegionInfo)*(*max));
+        *max = (*max) * 2;
+        *list = (RegionInfo *) realloc(*list, sizeof(RegionInfo) * (*max));
     }
 
     //printf("Returning from AddToRegionList\n");
@@ -2813,207 +2585,189 @@ int VirtualQueryExFull(HANDLE hProcess, uint32_t flags, RegionInfo **rinfo, uint
  * creates a full list of the maps file (less seeking)
  */
 {
-    int pagedonly=flags & VQE_PAGEDONLY;
-    int dirtyonly=flags & VQE_DIRTYONLY;
-    int noshared=flags & VQE_NOSHARED;
+    int pagedonly = flags & VQE_PAGEDONLY;
+    int dirtyonly = flags & VQE_DIRTYONLY;
+    int noshared = flags & VQE_NOSHARED;
 
     debug_log("VirtualQueryExFull:\n");
 
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
 
         char smaps_name[64];
         char pagemap_name[64];
 
-        sprintf(smaps_name,"/proc/%d/smaps", p->pid);
-        sprintf(pagemap_name,"/proc/%d/pagemap", p->pid);
+        sprintf(smaps_name, "/proc/%d/smaps", p->pid);
+        sprintf(pagemap_name, "/proc/%d/pagemap", p->pid);
 
-        FILE *maps=fopen(smaps_name, "r");
-        int pagemap=-1;
+        FILE *maps = fopen(smaps_name, "r");
+        int pagemap = -1;
 
-        uint64_t *pagemap_entries=NULL;
+        uint64_t *pagemap_entries = NULL;
 
-        if (pagedonly)
-        {
+        if (pagedonly) {
             debug_log("pagedonly\n");
-            pagemap=open(pagemap_name, O_RDONLY);
+            pagemap = open(pagemap_name, O_RDONLY);
 
             // debug_log("pagemap=%p\n", pagemap);
 
 
-            pagemap_entries=(uint64_t *)malloc(512*8);
+            pagemap_entries = (uint64_t *) malloc(512 * 8);
 
             debug_log("allocated pagemap_entries at %p\n", pagemap_entries);
         }
 
 
-        if (maps && (!pagedonly || (pagemap>=0)))
-        {
+        if (maps && (!pagedonly || (pagemap >= 0))) {
 
 
-            unsigned long long start=0, stop=0;
+            unsigned long long start = 0, stop = 0;
             char protectionstring[25];
             char x[200];
-            int pos=0, max=pagedonly?64:128;
+            int pos = 0, max = pagedonly ? 64 : 128;
             RegionInfo *r;
 
             debug_log("going to allocate r\n");
-            r=(RegionInfo *)malloc(sizeof(RegionInfo)*max);
+            r = (RegionInfo *) malloc(sizeof(RegionInfo) * max);
 
             debug_log("Allocated r at %p\n", r);
 
-            int isdirty=0;
-            int end=0;
+            int isdirty = 0;
+            int end = 0;
 
 
-            while (!end)
-            {
+            while (!end) {
                 unsigned long long _start, _stop;
                 char temp[25];
 
-                end=fgets(x, 200, maps)==0;
+                end = fgets(x, 200, maps) == 0;
 
 
                 //make sure the stream gets to tne next line. (long modulepaths can cause an issue)
 
                 //printf("%s\n",x);
 
-                if (x[strlen(x)-1]!='\n')
-                {
+                if (x[strlen(x) - 1] != '\n') {
                     //need to go to the end of line first
 
                     char discard[100];
 
-                    do
-                    {
-                        discard[99]=0;
+                    do {
+                        discard[99] = 0;
                         fgets(discard, 99, maps);
-                    } while (discard[99]!=0);
+                    } while (discard[99] != 0);
                 }
 
-                temp[0]=0;
+                temp[0] = 0;
                 sscanf(x, "%llx-%llx %24s", &_start, &_stop, temp);
 
-                if ((end) || (temp[0]!=0))
-                {
+                if ((end) || (temp[0] != 0)) {
                     //new entry
-                    if (start)
-                    {
-                        int passed=1;
-                        DWORD type=ProtectionStringToType(protectionstring);
-                        DWORD protection=ProtectionStringToProtection(protectionstring);
+                    if (start) {
+                        int passed = 1;
+                        DWORD type = ProtectionStringToType(protectionstring);
+                        DWORD protection = ProtectionStringToProtection(protectionstring);
 
                         //a block was being processed
 
 
                         //some checks to see if it passed
-                        if (noshared && (type==MEM_MAPPED)) //
-                            passed=0;
+                        if (noshared && (type == MEM_MAPPED)) //
+                            passed = 0;
 
                         if (dirtyonly && !isdirty)
-                            passed=0;
+                            passed = 0;
 
                         //writable only as well ?
 
-                        if (passed)
-                        {
+                        if (passed) {
                             //printf("passed the initial check\n");
-                            if (pagedonly)
-                            {
+                            if (pagedonly) {
                                 //only add the pages
                                 //todo: Add a dirtyonlyPlus which works in conjunction with softdirty pages (only works on newer kernels and requires a forced clear)
-                                uint64_t current=start;
+                                uint64_t current = start;
                                 int pagesize;
 #ifndef PAGESIZE
-                                pagesize=getpagesize();
+                                pagesize = getpagesize();
 #else
                                 pagesize=PAGESIZE;
 #endif
-                                while (current<stop)
-                                {
+                                while (current < stop) {
                                     int i;
-                                    int currentstart=-1;
-                                    off_t offset=(current / pagesize)*8;
-                                    size_t pagecount=(stop-current) / pagesize;
-                                    if (pagecount>512)
-                                        pagecount=512;
+                                    int currentstart = -1;
+                                    off_t offset = (current / pagesize) * 8;
+                                    size_t pagecount = (stop - current) / pagesize;
+                                    if (pagecount > 512)
+                                        pagecount = 512;
 
-                                    debug_log("-->%llx->%llx : %s (%llx)\n", start, stop, protectionstring, stop-start);
+                                    debug_log("-->%llx->%llx : %s (%llx)\n", start, stop, protectionstring,
+                                              stop - start);
 
-                                    i=pread(pagemap, pagemap_entries, pagecount*8, offset);
-                                    if (i==-1)
-                                    {
-                                        debug_log("offset=%llx, pagecount=%d read=%d (%d) \n", (unsigned long long)offset, (int)pagecount, i/8, i);
+                                    i = pread(pagemap, pagemap_entries, pagecount * 8, offset);
+                                    if (i == -1) {
+                                        debug_log("offset=%llx, pagecount=%d read=%d (%d) \n",
+                                                  (unsigned long long) offset, (int) pagecount, i / 8, i);
                                         //exit(12);
-                                    }
-                                    else
-                                    {
-                                        for (i=0; i<pagecount; i++)
-                                        {
+                                    } else {
+                                        for (i = 0; i < pagecount; i++) {
                                             if (pagemap_entries[i] >> 63) //present
                                             {
-                                                if (currentstart==-1) //new entry
-                                                    currentstart=i;
+                                                if (currentstart == -1) //new entry
+                                                    currentstart = i;
 
                                                 //total3+=pagesize;
-                                            }
-                                            else
-                                            {
-                                                if (currentstart!=-1)
-                                                {
+                                            } else {
+                                                if (currentstart != -1) {
                                                     //store this section (from currentstart to i-1)
-                                                    AddToRegionList((uint64_t)(current+currentstart*pagesize), (i-currentstart)*pagesize, type, protection, &r, &pos, &max);
+                                                    AddToRegionList((uint64_t) (current + currentstart * pagesize),
+                                                                    (i - currentstart) * pagesize, type, protection, &r,
+                                                                    &pos, &max);
                                                 }
 
-                                                currentstart=-1;
+                                                currentstart = -1;
                                             }
                                         }
 
-                                        if (currentstart!=-1)
-                                        {
+                                        if (currentstart != -1) {
                                             //store this section (from currentstart to pagecount)
-                                            int count=pagecount-currentstart;
-                                            AddToRegionList((uint64_t)(current+currentstart*pagesize), count*pagesize, type, protection, &r, &pos, &max);
+                                            int count = pagecount - currentstart;
+                                            AddToRegionList((uint64_t) (current + currentstart * pagesize),
+                                                            count * pagesize, type, protection, &r, &pos, &max);
                                         }
 
-                                        current+=pagecount*pagesize;
+                                        current += pagecount * pagesize;
                                     }
 
 
                                 }
 
-                            }
-                            else
-                                AddToRegionList(start, stop-start, type, protection, &r, &pos, &max);
+                            } else
+                                AddToRegionList(start, stop - start, type, protection, &r, &pos, &max);
                         }
-
 
 
                     }
 
 
                     //declare a new clean block for the next iteration
-                    isdirty=0;
+                    isdirty = 0;
                     strcpy(protectionstring, temp);
-                    start=_start;
-                    stop=_stop;
-                }
-                else
-                {
+                    start = _start;
+                    stop = _stop;
+                } else {
                     //one of the info lines
 
-                    if (dirtyonly && (start!=0))
-                    {
+                    if (dirtyonly && (start != 0)) {
                         //figure out if it's something I am interested in (dirty pages)
                         int i;
                         int number;
                         char name[32];
-                        i=sscanf(x, "%31[^:]: %d", name, &number);
-                        if (i==2)
-                        {
-                            if ((number>0) && ((strcmp(name,"Shared_Dirty")==0) || (strcmp(name,"Private_Dirty")==0))) //the value is >0 and it's information about the dirty state
-                                isdirty=1;
+                        i = sscanf(x, "%31[^:]: %d", name, &number);
+                        if (i == 2) {
+                            if ((number > 0) && ((strcmp(name, "Shared_Dirty") == 0) ||
+                                                 (strcmp(name, "Private_Dirty") ==
+                                                  0))) //the value is >0 and it's information about the dirty state
+                                isdirty = 1;
                         }
 
 
@@ -3029,12 +2783,12 @@ int VirtualQueryExFull(HANDLE hProcess, uint32_t flags, RegionInfo **rinfo, uint
             if (maps)
                 fclose(maps);
 
-            if (pagemap>=0)
+            if (pagemap >= 0)
                 close(pagemap);
 
 
-            *count=pos;
-            *rinfo=r;
+            *count = pos;
+            *rinfo = r;
 
             if (pagemap_entries)
                 free(pagemap_entries);
@@ -3042,9 +2796,7 @@ int VirtualQueryExFull(HANDLE hProcess, uint32_t flags, RegionInfo **rinfo, uint
             fflush(stdout);
 
             return 1;
-        }
-        else
-        {
+        } else {
             debug_log("Failure maps=%p pagemap=%d\n", maps, pagemap);
 
 
@@ -3053,7 +2805,7 @@ int VirtualQueryExFull(HANDLE hProcess, uint32_t flags, RegionInfo **rinfo, uint
             else
                 debug_log("Failure opening /proc/%d/smaps", p->pid);
 
-            if (pagemap>=0)
+            if (pagemap >= 0)
                 close(pagemap);
             else
                 debug_log("Failure opening /proc/%d/pagemap", p->pid);
@@ -3063,81 +2815,69 @@ int VirtualQueryExFull(HANDLE hProcess, uint32_t flags, RegionInfo **rinfo, uint
             return 0;
         }
 
-    }
-    else
+    } else
         return 0;
 
 }
 
-int VirtualQueryEx(HANDLE hProcess, void *lpAddress, PRegionInfo rinfo, char *mapsline)
-{
+int VirtualQueryEx(HANDLE hProcess, void *lpAddress, PRegionInfo rinfo, char *mapsline) {
     /*
      * Alternate method: read pagemaps and look up the pfn in /proc/kpageflags (needs to 2 files open and random seeks through both files, so not sure if slow or painfully slow...)
      */
 
     //VirtualQueryEx stub port. Not a real port, and returns true if successful and false on error
-    int found=0;
+    int found = 0;
 
     //printf("VirtualQueryEx(%p)", lpAddress);
 
-    if (GetHandleType(hProcess) == htProcesHandle )
-    {
-        PProcessData p=(PProcessData)GetPointerFromHandle(hProcess);
-        FILE *maps=fopen(p->maps, "r");
-        if (maps)
-        {
+    if (GetHandleType(hProcess) == htProcesHandle) {
+        PProcessData p = (PProcessData) GetPointerFromHandle(hProcess);
+        FILE *maps = fopen(p->maps, "r");
+        if (maps) {
             char x[200];
             //printf("Opened %s\n", p->maps);
 
 
-            rinfo->protection=0;
-            rinfo->baseaddress=(uintptr_t)lpAddress & ~0xfff;
-            lpAddress=(void *)(uintptr_t)(rinfo->baseaddress);
+            rinfo->protection = 0;
+            rinfo->baseaddress = (uintptr_t) lpAddress & ~0xfff;
+            lpAddress = (void *) (uintptr_t) (rinfo->baseaddress);
 
-            while (fgets(x, 200, maps) )
-            {
-                unsigned long long start=0, stop=0;
+            while (fgets(x, 200, maps)) {
+                unsigned long long start = 0, stop = 0;
                 char protectionstring[25];
 
-                x[199]=0;
+                x[199] = 0;
 
-                if (x[strlen(x)-1]!='\n')
-                {
+                if (x[strlen(x) - 1] != '\n') {
                     char discard[100];
 
-                    do
-                    {
-                        discard[99]=0;
+                    do {
+                        discard[99] = 0;
                         fgets(discard, 99, maps);
-                    } while (discard[99]!=0);
+                    } while (discard[99] != 0);
                 }
-
-
 
 
                 sscanf(x, "%llx-%llx %s", &start, &stop, protectionstring);
                 // debug_log("%llx - %llx : %s\n", start,stop, protectionstring);
 
-                if (stop > ((uintptr_t)lpAddress) ) //we passed it
+                if (stop > ((uintptr_t) lpAddress)) //we passed it
                 {
-                    found=1;
+                    found = 1;
 
-                    if (((uintptr_t)lpAddress) >= start )
-                    {
+                    if (((uintptr_t) lpAddress) >= start) {
                         //it's inside the region, so useable
 
-                        rinfo->protection=ProtectionStringToProtection(protectionstring);
-                        rinfo->type=ProtectionStringToType(protectionstring);
-                        rinfo->size=stop-rinfo->baseaddress;
-                    }
-                    else
-                    {
-                        rinfo->size=start-rinfo->baseaddress;
-                        rinfo->protection=PAGE_NOACCESS;
-                        rinfo->type=0;
+                        rinfo->protection = ProtectionStringToProtection(protectionstring);
+                        rinfo->type = ProtectionStringToType(protectionstring);
+                        rinfo->size = stop - rinfo->baseaddress;
+                    } else {
+                        rinfo->size = start - rinfo->baseaddress;
+                        rinfo->protection = PAGE_NOACCESS;
+                        rinfo->type = 0;
                     }
 
-                    if (mapsline!=NULL)
+                    if (mapsline != NULL)
                         strcpy(mapsline, x);
 
                     break;
@@ -3147,9 +2887,7 @@ int VirtualQueryEx(HANDLE hProcess, void *lpAddress, PRegionInfo rinfo, char *ma
             fclose(maps);
 
             return found;
-        }
-        else
-        {
+        } else {
             debug_log("failed opening %s\n", p->maps);
         }
     }
@@ -3163,11 +2901,10 @@ int SearchHandleListProcessCallback(PProcessData data, int *pid)
  * Searchdata is a pointer to the processid to be looked for
  */
 {
-    return (data->pid==*pid);
+    return (data->pid == *pid);
 }
 
-HANDLE OpenProcess(DWORD pid)
-{
+HANDLE OpenProcess(DWORD pid) {
     //check if the process exists
     char processpath[100];
     int handle;
@@ -3175,11 +2912,10 @@ HANDLE OpenProcess(DWORD pid)
 
 
     //check if this process has already been opened
-    handle=SearchHandleList(htProcesHandle, SearchHandleListProcessCallback, &pid);
-    if (handle)
-    {
+    handle = SearchHandleList(htProcesHandle, (HANDLESEARCHCALLBACK) SearchHandleListProcessCallback, &pid);
+    if (handle) {
         debug_log("Already opened. Returning same handle\n");
-        PProcessData p=(PProcessData)GetPointerFromHandle(handle);
+        PProcessData p = (PProcessData) GetPointerFromHandle(handle);
         p->ReferenceCount++;
         return handle;
     }
@@ -3187,41 +2923,39 @@ HANDLE OpenProcess(DWORD pid)
     //still here, so not opened yet
 
 
-    if (chdir(processpath)==0)
-    {
+    if (chdir(processpath) == 0) {
         //success
 
         //create a process info structure and return a handle to it
-        PProcessData p=(PProcessData)malloc(sizeof(ProcessData));
+        PProcessData p = (PProcessData) malloc(sizeof(ProcessData));
 
         memset(p, 0, sizeof(ProcessData));
 
-        p->ReferenceCount=1;
-        p->pid=pid;
-        p->path=strdup(processpath);
+        p->ReferenceCount = 1;
+        p->pid = pid;
+        p->path = strdup(processpath);
 
-        sprintf(processpath,"/proc/%d/maps", pid);
-        p->maps=strdup(processpath);
+        sprintf(processpath, "/proc/%d/maps", pid);
+        p->maps = strdup(processpath);
 
-        if(MEMORY_SEARCH_OPTION == 0)
-        {
-            sprintf(processpath,"/proc/%d/mem", pid);
-            p->mem=open(processpath, O_RDONLY);
+        if (MEMORY_SEARCH_OPTION == 0) {
+            sprintf(processpath, "/proc/%d/mem", pid);
+            p->mem = open(processpath, O_RDONLY);
         }
 
 
         pthread_mutex_init(&p->extensionMutex, NULL);
-        p->hasLoadedExtension=0;
-        p->extensionFD=0;
+        p->hasLoadedExtension = 0;
+        p->extensionFD = 0;
 
 
-        p->isDebugged=0;
+        p->isDebugged = 0;
 
-        p->threadlistmax=0;
-        p->threadlistpos=0;
-        p->threadlist=NULL;
+        p->threadlistmax = 0;
+        p->threadlistpos = 0;
+        p->threadlist = NULL;
 
-        p->debuggedThreadEvent.threadid=0;
+        p->debuggedThreadEvent.threadid = 0;
 
         pthread_mutex_init(&p->debugEventQueueMutex, NULL);
 
@@ -3234,168 +2968,138 @@ HANDLE OpenProcess(DWORD pid)
         TAILQ_INIT(&p->debugEventQueue);
 
 
-
-
-
-
         return CreateHandleFromPointer(p, htProcesHandle);
 
 
-    }
-    else
+    } else
         return 0; //could not find the process
 
 }
 
 
-BOOL Process32Next(HANDLE hSnapshot, PProcessListEntry processentry)
-{
+BOOL Process32Next(HANDLE hSnapshot, PProcessListEntry processentry) {
     //get the current iterator of the list and increase it. If the max has been reached, return false
     // debug_log("Process32Next\n");
 
-    if (GetHandleType(hSnapshot) == htTHSProcess)
-    {
-        PProcessList pl=(PProcessList)GetPointerFromHandle(hSnapshot);
+    if (GetHandleType(hSnapshot) == htTHSProcess) {
+        PProcessList pl = (PProcessList) GetPointerFromHandle(hSnapshot);
 
-        if (pl->processListIterator<pl->processCount)
-        {
-            processentry->PID=pl->processList[pl->processListIterator].PID;
-            processentry->ProcessName=pl->processList[pl->processListIterator].ProcessName; //no need to copy
+        if (pl->processListIterator < pl->processCount) {
+            processentry->PID = pl->processList[pl->processListIterator].PID;
+            processentry->ProcessName = pl->processList[pl->processListIterator].ProcessName; //no need to copy
             pl->processListIterator++;
 
             return TRUE;
-        }
-        else
+        } else
             return FALSE;
-    }
-    else
+    } else
         return FALSE;
 }
 
 
-
-
-BOOL Process32First(HANDLE hSnapshot, PProcessListEntry processentry)
-{
+BOOL Process32First(HANDLE hSnapshot, PProcessListEntry processentry) {
     //Get a processentry from the processlist snapshot. fill the given processentry with the data.
 
     // debug_log("Process32First\n");
-    if (GetHandleType(hSnapshot) == htTHSProcess)
-    {
-        PProcessList pl=(PProcessList)GetPointerFromHandle(hSnapshot);
-        pl->processListIterator=0;
+    if (GetHandleType(hSnapshot) == htTHSProcess) {
+        PProcessList pl = (PProcessList) GetPointerFromHandle(hSnapshot);
+        pl->processListIterator = 0;
         return Process32Next(hSnapshot, processentry);
-    }
-    else
+    } else
         return FALSE;
 }
 
 
-BOOL Module32Next(HANDLE hSnapshot, PModuleListEntry moduleentry)
-{
+BOOL Module32Next(HANDLE hSnapshot, PModuleListEntry moduleentry) {
     //get the current iterator of the list and increase it. If the max has been reached, return false
     debug_log("Module32First/Next(%d)\n", hSnapshot);
 
-    if (GetHandleType(hSnapshot) == htTHSModule)
-    {
-        PModuleList ml=(PModuleList)GetPointerFromHandle(hSnapshot);
+    if (GetHandleType(hSnapshot) == htTHSModule) {
+        PModuleList ml = (PModuleList) GetPointerFromHandle(hSnapshot);
 
-        if (ml->moduleListIterator<ml->moduleCount)
-        {
-            moduleentry->baseAddress=ml->moduleList[ml->moduleListIterator].baseAddress;
-            moduleentry->moduleName=ml->moduleList[ml->moduleListIterator].moduleName;
-            moduleentry->moduleSize=ml->moduleList[ml->moduleListIterator].moduleSize;
+        if (ml->moduleListIterator < ml->moduleCount) {
+            moduleentry->baseAddress = ml->moduleList[ml->moduleListIterator].baseAddress;
+            moduleentry->moduleName = ml->moduleList[ml->moduleListIterator].moduleName;
+            moduleentry->moduleSize = ml->moduleList[ml->moduleListIterator].moduleSize;
 
             ml->moduleListIterator++;
 
             //printf("Module32First/Next: Returning %s size %x\n", moduleentry->moduleName, moduleentry->moduleSize);
 
             return TRUE;
-        }
-        else
-        {
-            debug_log("Module32First/Next: Returning false because ml->moduleListIterator=%d and ml->moduleCount=%d\n", ml->moduleListIterator, ml->moduleCount);
+        } else {
+            debug_log("Module32First/Next: Returning false because ml->moduleListIterator=%d and ml->moduleCount=%d\n",
+                      ml->moduleListIterator, ml->moduleCount);
             return FALSE;
         }
-    }
-    else
-    {
-        debug_log("Module32First/Next: GetHandleType(hSnapshot)=%d\n",GetHandleType(hSnapshot));
+    } else {
+        debug_log("Module32First/Next: GetHandleType(hSnapshot)=%d\n", GetHandleType(hSnapshot));
         return FALSE;
     }
 }
 
 
-BOOL Module32First(HANDLE hSnapshot, PModuleListEntry moduleentry)
-{
+BOOL Module32First(HANDLE hSnapshot, PModuleListEntry moduleentry) {
 
     //printf("Module32First\n");
-    if (GetHandleType(hSnapshot) == htTHSModule)
-    {
-        PModuleList ml=(PModuleList)GetPointerFromHandle(hSnapshot);
-        ml->moduleListIterator=0;
+    if (GetHandleType(hSnapshot) == htTHSModule) {
+        PModuleList ml = (PModuleList) GetPointerFromHandle(hSnapshot);
+        ml->moduleListIterator = 0;
         return Module32Next(hSnapshot, moduleentry);
-    }
-    else
+    } else
         return FALSE;
 }
 
 
-HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
-{
+HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID) {
 
-    if (dwFlags & TH32CS_SNAPPROCESS)
-    {
+    if (dwFlags & TH32CS_SNAPPROCESS) {
         //create a processlist which process32first/process32next will make use of. Not often called so you may make it as slow as you wish
-        int max=2048;
-        PProcessList pl=(PProcessList)malloc(sizeof(ProcessList));
+        int max = 2048;
+        PProcessList pl = (PProcessList) malloc(sizeof(ProcessList));
 
         //printf("Creating processlist\n");
 
-        pl->ReferenceCount=1;
-        pl->processCount=0;
-        pl->processList=(PProcessListEntry)malloc(sizeof(ProcessListEntry)* max);
+        pl->ReferenceCount = 1;
+        pl->processCount = 0;
+        pl->processList = (PProcessListEntry) malloc(sizeof(ProcessListEntry) * max);
 
-        DIR *procfolder=opendir("/proc/");
+        DIR *procfolder = opendir("/proc/");
 
         struct dirent *currentfile;
 
-        while ((currentfile=readdir(procfolder)) != NULL)
-        {
+        while ((currentfile = readdir(procfolder)) != NULL) {
 
-            if (strspn(currentfile->d_name, "1234567890")==strlen(currentfile->d_name))
-            {
+            if (strspn(currentfile->d_name, "1234567890") == strlen(currentfile->d_name)) {
                 int pid;
-                char exepath[200];
+                char exepath[266];
                 char processpath[512];
-                snprintf(exepath, 200, "/proc/%s/exe", currentfile->d_name);
-                exepath[199]=0; //'should' not be needed in linux, but I read that microsoft is an asshole with this function
+                snprintf(exepath, 266, "/proc/%s/exe", currentfile->d_name);
+                exepath[199] = 0; //'should' not be needed in linux, but I read that microsoft is an asshole with this function
 
-                int i=readlink(exepath, processpath, 254);
-                if (i != -1)
-                {
-                    char extrafile[255];
+                int i = readlink(exepath, processpath, 254);
+                if (i != -1) {
+                    char extrafile[270];
                     int f;
 
-                    if (i>254)
-                        i=254;
+                    if (i > 254)
+                        i = 254;
 
-                    processpath[i]=0;
+                    processpath[i] = 0;
 
-                    snprintf(extrafile, 255, "/proc/%s/cmdline", currentfile->d_name);
-                    extrafile[254]=0;
+                    snprintf(extrafile, 270, "/proc/%s/cmdline", currentfile->d_name);
+                    extrafile[254] = 0;
 
-                    f=open(extrafile, O_RDONLY);
-                    if (f!=-1)
-                    {
-                        i=read(f, extrafile, 255);
-                        if (i>=0)
-                            extrafile[i]=0;
+                    f = open(extrafile, O_RDONLY);
+                    if (f != -1) {
+                        i = read(f, extrafile, 270);
+                        if (i >= 0)
+                            extrafile[i] = 0;
                         else
-                            extrafile[0]=0;
+                            extrafile[0] = 0;
 
-                        strcat(processpath," ");
-                        strcat(processpath,extrafile);
+                        strcat(processpath, " ");
+                        strcat(processpath, extrafile);
 
                         close(f);
                     }
@@ -3405,15 +3109,14 @@ HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
                     // debug_log("%d - %s\n", pid, processpath);
 
                     //add this process to the list
-                    pl->processList[pl->processCount].PID=pid;
-                    pl->processList[pl->processCount].ProcessName=strdup(processpath);
+                    pl->processList[pl->processCount].PID = pid;
+                    pl->processList[pl->processCount].ProcessName = strdup(processpath);
 
                     pl->processCount++;
 
-                    if (pl->processCount>=max)
-                    {
-                        max=max*2;
-                        pl->processList=(PProcessListEntry)realloc(pl->processList, max*sizeof(ProcessListEntry));
+                    if (pl->processCount >= max) {
+                        max = max * 2;
+                        pl->processList = (PProcessListEntry) realloc(pl->processList, max * sizeof(ProcessListEntry));
                     }
                 }
 
@@ -3425,77 +3128,73 @@ HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
         closedir(procfolder);
 
         return CreateHandleFromPointer(pl, htTHSProcess);
-    }
-    else
-    if ((dwFlags & TH32CS_SNAPMODULE) && (ATTACH_PID == 0 ||(ATTACH_PID != 0 && (th32ProcessID == ATTACH_PID))))
-    {
+    } else if ((dwFlags & TH32CS_SNAPMODULE) &&
+               (ATTACH_PID == 0 || (ATTACH_PID != 0 && (th32ProcessID == ATTACH_PID)))) {
         //make a list of all the modules loaded by processid th32ProcessID
         //the module list
-        int max=64;
+        int max = 64;
         char mapfile[255];
-        FILE *f=NULL;
+        FILE *f = NULL;
         snprintf(mapfile, 255, "/proc/%d/maps", th32ProcessID);
 
-        PModuleList ml=(PModuleList)malloc(sizeof(ModuleList));
+        PModuleList ml = (PModuleList) malloc(sizeof(ModuleList));
 
         debug_log("Creating module list for process %d\n", th32ProcessID);
 
-        ml->ReferenceCount=1;
-        ml->moduleCount=0;
-        ml->moduleList=(PModuleListEntry)malloc(sizeof(ModuleListEntry)*max);
+        ml->ReferenceCount = 1;
+        ml->moduleCount = 0;
+        ml->moduleList = (PModuleListEntry) malloc(sizeof(ModuleListEntry) * max);
 
 
-        f=fopen(mapfile, "r");
+        f = fopen(mapfile, "r");
 
 
-        if (f)
-        {
+        if (f) {
             char s[512];
             memset(s, 0, 512);
 
-            PModuleListEntry mle=NULL;
-            int phandle=OpenProcess(th32ProcessID);
-            int hasValidModuleSize=0;
-
+            PModuleListEntry mle = NULL;
+            int phandle = OpenProcess(th32ProcessID);
+            int hasValidModuleSize = 0;
 
 
             while (fgets(s, 511, f)) //read a line into s
             {
                 unsigned long long start, stop;
-                char memoryrange[64],protectionstring[32],modulepath[511];
+                char memoryrange[64], protectionstring[32], modulepath[511];
                 uint32_t magic;
 
-                modulepath[0]='\0';
+                modulepath[0] = '\0';
                 memset(modulepath, 0, 255);
 
 
                 sscanf(s, "%llx-%llx %s %*s %*s %*s %[^\t\n]\n", &start, &stop, protectionstring, modulepath);
 
-                if (ProtectionStringToType(protectionstring)==MEM_MAPPED)
+                if (ProtectionStringToType(protectionstring) == MEM_MAPPED)
                     continue;
 
                 if (modulepath[0]) //it's something
                 {
                     int i;
-                    if (strcmp(modulepath, "[heap]")==0)  //not static enough to mark as a 'module'
+                    if (strcmp(modulepath, "[heap]") == 0)  //not static enough to mark as a 'module'
                         continue;
 
                     debug_log("%s\n", modulepath);
 
-                    if (strcmp(modulepath, "[vdso]")!=0)  //temporary patch as to not rename vdso, because it is treated differently by the ce symbol loader
+                    if (strcmp(modulepath, "[vdso]") !=
+                        0)  //temporary patch as to not rename vdso, because it is treated differently by the ce symbol loader
                     {
-                        for (i=0; modulepath[i]; i++) //strip square brackets from the name (conflicts with pointer notations)
+                        for (i = 0; modulepath[i]; i++) //strip square brackets from the name (conflicts with pointer notations)
                         {
-                            if ((modulepath[i]=='[') || (modulepath[i]==']'))
-                                modulepath[i]='_';
+                            if ((modulepath[i] == '[') || (modulepath[i] == ']'))
+                                modulepath[i] = '_';
                         }
                     }
 
-                    if ((mle) && (strcmp(modulepath, mle->moduleName)==0))
-                    {
+                    if ((mle) && (strcmp(modulepath, mle->moduleName) == 0)) {
                         //same module as the last entry, adjust the size to encapsule this (may mark non module memory as module memory)
-                        if (hasValidModuleSize==0)
-                            mle->moduleSize=stop-(mle->baseAddress); //else use the already provided modulesize
+                        if (hasValidModuleSize == 0)
+                            mle->moduleSize = stop - (mle->baseAddress); //else use the already provided modulesize
                         continue;
                     }
 
@@ -3506,16 +3205,15 @@ HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
                     //check if it starts with ELF
 
                     //printf("tempbuf=%s\n", tempbuf);
-                    i=ReadProcessMemory(phandle, (void *)start, &magic, 4);
-                    if (i==0)
-                    {
+                    i = ReadProcessMemory(phandle, (void *) start, &magic, 4);
+                    if (i == 0) {
                         //printf("%s is unreadable(%llx)\n", modulepath, start);
                         continue; //unreadable
                     }
 
                     //printf("i=%d\n", i);
 
-                    if (magic!=0x464c457f) //  7f 45 4c 46
+                    if (magic != 0x464c457f) //  7f 45 4c 46
                     {
                         //printf("%s is not an ELF(%llx).  tempbuf=%s\n", modulepath, start, tempbuf);
                         continue; //not an ELF
@@ -3523,29 +3221,26 @@ HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
 
                     //printf("Found an ELF\n");
 
-                    mle=&ml->moduleList[ml->moduleCount];
-                    mle->moduleName=strdup(modulepath);
-                    mle->baseAddress=start;
-                    mle->moduleSize=GetModuleSize(modulepath, 0);
+                    mle = &ml->moduleList[ml->moduleCount];
+                    mle->moduleName = strdup(modulepath);
+                    mle->baseAddress = start;
+                    mle->moduleSize = GetModuleSize(modulepath, 0);
 
-                    hasValidModuleSize=mle->moduleSize!=0;
+                    hasValidModuleSize = mle->moduleSize != 0;
 
                     //  debug_log("Setting size of %s to %x\n", modulepath, mle->moduleSize);
 
                     ml->moduleCount++;
 
-                    if (ml->moduleCount>=max)
-                    {
+                    if (ml->moduleCount >= max) {
                         //printf("reallocate modulelist\n");
-                        max=max*2;
-                        ml->moduleList=(PModuleListEntry)realloc(ml->moduleList, max* sizeof(ModuleListEntry));
+                        max = max * 2;
+                        ml->moduleList = (PModuleListEntry) realloc(ml->moduleList, max * sizeof(ModuleListEntry));
                     }
 
 
-                }
-                else
-                    mle=NULL;
-
+                } else
+                    mle = NULL;
 
 
             }
@@ -3555,13 +3250,10 @@ HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
             fclose(f);
 
             return CreateHandleFromPointer(ml, htTHSModule);
-        }
-        else
-        {
+        } else {
             debug_log("Failed opening %s\n", mapfile);
             return 0;
         }
-
 
 
     }
@@ -3570,20 +3262,17 @@ HANDLE CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
     return 0;
 }
 
-void CloseHandle(HANDLE h)
-{
+void CloseHandle(HANDLE h) {
     int i;
-    handleType ht=GetHandleType(h);
+    handleType ht = GetHandleType(h);
 
     // debug_log("CloseHandle(%d)\n", h);
-    if (ht==htTHSModule)
-    {
-        ModuleList *ml=(PModuleList)GetPointerFromHandle(h);
+    if (ht == htTHSModule) {
+        ModuleList *ml = (PModuleList) GetPointerFromHandle(h);
         ml->ReferenceCount--;
-        if (ml->ReferenceCount<=0)
-        {
+        if (ml->ReferenceCount <= 0) {
             //free all the processnames in the list
-            for (i=0; i<ml->moduleCount; i++)
+            for (i = 0; i < ml->moduleCount; i++)
                 free(ml->moduleList[i].moduleName);
 
             free(ml->moduleList); //free the list
@@ -3593,17 +3282,15 @@ void CloseHandle(HANDLE h)
         }
 
     }
-    if (ht==htTHSProcess)
-    {
-        ProcessList *pl=(PProcessList)GetPointerFromHandle(h);
+    if (ht == htTHSProcess) {
+        ProcessList *pl = (PProcessList) GetPointerFromHandle(h);
 
 
         pl->ReferenceCount--;
 
-        if (pl->ReferenceCount<=0)
-        {
+        if (pl->ReferenceCount <= 0) {
             //free all the processnames in the list
-            for (i=0; i<pl->processCount; i++)
+            for (i = 0; i < pl->processCount; i++)
                 free(pl->processList[i].ProcessName);
 
             free(pl->processList); //free the list
@@ -3611,15 +3298,11 @@ void CloseHandle(HANDLE h)
 
             RemoveHandle(h);
         }
-    }
-    else
-    if (ht==htProcesHandle)
-    {
-        PProcessData pd=(PProcessData)GetPointerFromHandle(h);
+    } else if (ht == htProcesHandle) {
+        PProcessData pd = (PProcessData) GetPointerFromHandle(h);
 
         pd->ReferenceCount--;
-        if (pd->ReferenceCount<=0)
-        {
+        if (pd->ReferenceCount <= 0) {
             free(pd->maps);
             free(pd->path);
             close(pd->mem);
@@ -3627,27 +3310,23 @@ void CloseHandle(HANDLE h)
 
             RemoveHandle(h);
         }
-    }
-    else
-    if (ht==htNativeThreadHandle)
-    {
-        uint64_t *th=GetPointerFromHandle(h);
+    } else if (ht == htNativeThreadHandle) {
+        uint64_t *th = GetPointerFromHandle(h);
         debug_log("Closing thread handle\n");
 
         free(th);
         RemoveHandle(h);
-    }
-    else
+    } else
         RemoveHandle(h); //no idea what it is...
 
 
 }
 
-void initAPI()
-{
+void initAPI() {
     pthread_mutex_init(&memorymutex, NULL);
     pthread_mutex_init(&debugsocketmutex, NULL);
 
     sem_init(&sem_DebugThreadEvent, 0, 0); //locked by default
 
 }
+#pragma clang diagnostic pop

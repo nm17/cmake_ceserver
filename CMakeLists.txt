@@ -6,11 +6,13 @@ set(CMAKE_C_STANDARD 11)
 include_directories(.)
 include_directories(extension)
 
+message(AUTHOR_WARNING "This project is in development. Dont use for production.")
+
 find_package(ZLIB REQUIRED)
 
 find_package(Threads REQUIRED)
 
-file(GLOB CESERVER_SRC src/* )
+file(GLOB CESERVER_SRC src/*.h src/*.c )
 
 add_executable(ceserver ${CESERVER_SRC})
 
