@@ -52,7 +52,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "api.h"
+#include "src/ceserver/api.h"
 
 #include <dlfcn.h>
 
@@ -76,9 +76,9 @@
 #include <elf.h>
 #endif
 
-#include "porthelp.h"
-#include "api.h"
-#include "ceserver.h"
+#include "src/ceserver/utils/porthelp.h"
+#include "src/ceserver/api.h"
+#include "src/ceserver/ceserver.h"
 
 #ifndef SUN_LEN //missing in android (copy from linux sys/un.h)
 

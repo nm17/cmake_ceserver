@@ -9,8 +9,8 @@
 #define EXTENSIONFUNCTIONS_H_
 
 #include <stdint.h>
-#include "ceserver.h"
-#include "porthelp.h"
+#include "src/ceserver/ceserver.h"
+#include "src/ceserver/utils/porthelp.h"
 
 #define EXTCMD_ALLOC                    0
 #define EXTCMD_FREE                     1

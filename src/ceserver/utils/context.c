@@ -7,7 +7,7 @@
 
 
 #include "context.h"
-#include "api.h"
+#include "src/ceserver/api.h"
 
 int getRegisters(int tid, CONTEXT_REGS *registerstore) {
 

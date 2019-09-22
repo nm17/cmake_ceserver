@@ -15,7 +15,7 @@
 
 #include "extensionloader.h"
 #include "extensionfunctions.h"
-#include "api.h"
+#include "src/ceserver/api.h"
 
 //todo: Make all of these fail if the debugger is waiting to continue from a debug event
 

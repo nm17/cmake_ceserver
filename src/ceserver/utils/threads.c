@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "threads.h"
-#include "api.h"
+#include "src/ceserver/api.h"
 
 void InitializeProcessThreadlist(PProcessData p) {
     if (p->threadlist == NULL) //new list

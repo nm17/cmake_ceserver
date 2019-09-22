@@ -21,12 +21,12 @@
 #include <errno.h>
 
 #include "ceserver.h"
-#include "porthelp.h"
+#include "src/ceserver/utils/porthelp.h"
 #include "api.h"
-#include "ceservertest.h"
-#include "symbols.h"
-#include "extensionfunctions.h"
-#include "extensionloader.h"
+#include "src/ceserver/selftest/ceservertest.h"
+#include "src/ceserver/utils/symbols.h"
+#include "src/ceserver/extension/extensionfunctions.h"
+#include "src/ceserver/extension/extensionloader.h"
 
 pthread_t pth;
 pthread_t identifierthread;

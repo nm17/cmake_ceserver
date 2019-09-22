@@ -15,8 +15,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "ceserver.h"
-#include "api.h" //for debugevent
+#include "src/ceserver/ceserver.h"
+#include "src/ceserver/api.h" //for debugevent
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"

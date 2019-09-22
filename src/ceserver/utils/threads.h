@@ -9,7 +9,7 @@
 #define TREADS_H_
 
 #include <sys/queue.h>
-#include "api.h"
+#include "src/ceserver/api.h"
 
 
 void InitializeProcessThreadlist(PProcessData p);

@@ -8,7 +8,7 @@
 #ifndef EXTENTIONLOADER_H_
 #define EXTENTIONLOADER_H_
 
-#include "porthelp.h"
+#include "src/ceserver/utils/porthelp.h"
 
 int loadCEServerExtension(HANDLE hProcess);
 

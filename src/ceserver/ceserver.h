@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
-#include "porthelp.h"
+#include "src/ceserver/utils/porthelp.h"
 
 #define CMD_GETVERSION 0
 #define CMD_CLOSECONNECTION 1

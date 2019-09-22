@@ -12,8 +12,8 @@
 #include <pthread.h>
 #include <sys/queue.h>
 
-#include "porthelp.h"
-#include "context.h"
+#include "src/ceserver/utils/porthelp.h"
+#include "src/ceserver/utils/context.h"
 
 #include <sys/ptrace.h>
 

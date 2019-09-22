@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <zlib.h>
-#include "api.h"
+#include "src/ceserver/api.h"
 
 #pragma pack(1)
 typedef struct {
